@@ -6,23 +6,10 @@ import { chatAPI, employeeAPI } from './services/api'
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authToken, setAuthToken] = useState(null)
+  const [currentEmployeeId, setCurrentEmployeeId] = useState(null)
 
-  const [chats, setChats] = useState([
-    {
-      id: 1,
-      title: 'Новый чат',
-      messages: [
-        {
-          id: 1,
-          text: 'Привет! Я ваш AI-ассистент. Чем могу помочь?',
-          sender: 'bot',
-          timestamp: new Date()
-        }
-      ],
-      date: new Date()
-    }
-  ])
-  const [activeChat, setActiveChat] = useState(1)
+  const [chats, setChats] = useState([])
+  const [activeChat, setActiveChat] = useState(null)
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -68,9 +55,12 @@ function App() {
       setAuthToken(token);
       setIsAuthenticated(true);
       const employeeData = JSON.parse(employee);
+      const empId = employeeData.employee_id;
+      setCurrentEmployeeId(empId);
+
       setUserProfile(prev => ({
         ...prev,
-        employeeId: employeeData.employee_id,
+        employeeId: empId,
         email: employeeData.email,
         fullName: employeeData.full_name,
         position: employeeData.position,
@@ -78,15 +68,75 @@ function App() {
         vacationDays: employeeData.vacation_days,
         birthDate: employeeData.birth_date ? new Date(employeeData.birth_date).toLocaleDateString('ru-RU') : prev.birthDate
       }));
+
+      // Загрузка чатов для этого пользователя
+      loadChatsForUser(empId);
     }
   }, []);
+
+  // Загрузка чатов из localStorage для конкретного пользователя
+  const loadChatsForUser = (employeeId) => {
+    const storageKey = `chats_${employeeId}`;
+    const savedChats = localStorage.getItem(storageKey);
+
+    if (savedChats) {
+      const parsedChats = JSON.parse(savedChats);
+      // Восстанавливаем Date объекты
+      const chatsWithDates = parsedChats.map(chat => ({
+        ...chat,
+        date: new Date(chat.date),
+        messages: chat.messages.map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }))
+      }));
+      setChats(chatsWithDates);
+      if (chatsWithDates.length > 0) {
+        setActiveChat(chatsWithDates[0].id);
+      }
+    } else {
+      // Создаем первый чат для нового пользователя
+      const initialChat = {
+        id: Date.now(),
+        title: 'Новый чат',
+        messages: [
+          {
+            id: Date.now() + 1,
+            text: 'Привет! Я ваш AI-ассистент. Чем могу помочь?',
+            sender: 'bot',
+            timestamp: new Date()
+          }
+        ],
+        date: new Date()
+      };
+      setChats([initialChat]);
+      setActiveChat(initialChat.id);
+      saveChatsForUser(employeeId, [initialChat]);
+    }
+  };
+
+  // Сохранение чатов в localStorage для конкретного пользователя
+  const saveChatsForUser = (employeeId, chatsData) => {
+    const storageKey = `chats_${employeeId}`;
+    localStorage.setItem(storageKey, JSON.stringify(chatsData));
+  };
+
+  // Сохранение чатов при каждом изменении
+  useEffect(() => {
+    if (currentEmployeeId && chats.length > 0) {
+      saveChatsForUser(currentEmployeeId, chats);
+    }
+  }, [chats, currentEmployeeId]);
 
   const handleLogin = (employee, token) => {
     setAuthToken(token);
     setIsAuthenticated(true);
+    const empId = employee.employee_id;
+    setCurrentEmployeeId(empId);
+
     setUserProfile(prev => ({
       ...prev,
-      employeeId: employee.employee_id,
+      employeeId: empId,
       email: employee.email,
       fullName: employee.full_name,
       position: employee.position,
@@ -94,6 +144,9 @@ function App() {
       vacationDays: employee.vacation_days,
       birthDate: employee.birth_date ? new Date(employee.birth_date).toLocaleDateString('ru-RU') : prev.birthDate
     }));
+
+    // Загрузка чатов для этого пользователя
+    loadChatsForUser(empId);
   };
 
   const handleLogout = () => {
@@ -101,6 +154,9 @@ function App() {
     localStorage.removeItem('employee');
     setAuthToken(null);
     setIsAuthenticated(false);
+    setCurrentEmployeeId(null);
+    setChats([]);
+    setActiveChat(null);
   };
 
   useEffect(() => {
