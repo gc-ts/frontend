@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { chatAPI } from './services/api';
+import { authAPI } from './services/api';
 import './Auth.css';
 
 function Auth({ onLogin }) {
@@ -30,22 +30,7 @@ function Auth({ onLogin }) {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          login: formData.login,
-          password: formData.password
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Ошибка входа');
-      }
+      const data = await authAPI.login(formData.login, formData.password);
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('employee', JSON.stringify(data.employee));
@@ -64,26 +49,12 @@ function Auth({ onLogin }) {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          employeeId: formData.employeeId,
-          email: formData.email,
-          password: formData.password,
-          fullName: formData.fullName,
-          position: formData.position,
-          department: formData.department
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Ошибка регистрации');
-      }
+      await authAPI.register(
+        formData.employeeId,
+        formData.email,
+        formData.password,
+        formData.fullName
+      );
 
       // После успешной регистрации автоматически логинимся
       setFormData({

@@ -4,6 +4,57 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
  * API Service для взаимодействия с backend
  */
 
+// Auth API
+export const authAPI = {
+  register: async (employeeId, email, password, fullName) => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ employeeId, email, password, fullName })
+    });
+
+    if (!response.ok) {
+      throw new Error('Registration failed');
+    }
+
+    return response.json();
+  },
+
+  login: async (login, password) => {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ login, password })
+    });
+
+    if (!response.ok) {
+      throw new Error('Login failed');
+    }
+
+    return response.json();
+  },
+
+  verify: async (token) => {
+    const response = await fetch(`${API_URL}/auth/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Token verification failed');
+    }
+
+    return response.json();
+  }
+};
+
 // Chat API
 export const chatAPI = {
   sendMessage: async (message, employeeId = null) => {
@@ -20,6 +71,46 @@ export const chatAPI = {
     }
 
     return response.json();
+  },
+
+  sendMessageStream: async (message, employeeId = null, onChunk) => {
+    const response = await fetch(`${API_URL}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message, employeeId })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send message');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            if (onChunk) onChunk(parsed);
+          } catch (e) {
+            console.error('Failed to parse SSE data:', e);
+          }
+        }
+      }
+    }
   },
 
   getHistory: async (employeeId) => {
@@ -76,6 +167,16 @@ export const employeeAPI = {
 
     if (!response.ok) {
       throw new Error('Failed to get birthday data');
+    }
+
+    return response.json();
+  },
+
+  searchByName: async (name) => {
+    const response = await fetch(`${API_URL}/employee/search/by-name?name=${encodeURIComponent(name)}`);
+
+    if (!response.ok) {
+      throw new Error('Failed to search employee');
     }
 
     return response.json();
@@ -182,6 +283,31 @@ export const knowledgeAPI = {
     }
 
     return response.json();
+  },
+
+  reindex: async () => {
+    const response = await fetch(`${API_URL}/knowledge/reindex`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to reindex knowledge base');
+    }
+
+    return response.json();
+  },
+
+  getIndexStatus: async () => {
+    const response = await fetch(`${API_URL}/knowledge/index`);
+
+    if (!response.ok) {
+      throw new Error('Failed to get index status');
+    }
+
+    return response.json();
   }
 };
 
@@ -197,6 +323,7 @@ export const healthCheck = async () => {
 };
 
 export default {
+  authAPI,
   chatAPI,
   employeeAPI,
   documentsAPI,
