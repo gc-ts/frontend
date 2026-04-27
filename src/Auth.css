@@ -27,7 +27,7 @@
 .auth-header .logo-avatar {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3D8210;
   border-radius: 16px;
   display: inline-flex;
   flex-direction: column;
@@ -84,7 +84,7 @@
 
 .auth-tab.active {
   background: white;
-  color: #667eea;
+  color: #3D8210;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -143,8 +143,8 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #3D8210;
+  box-shadow: 0 0 0 3px rgba(61, 130, 16, 0.1);
 }
 
 .form-group input:disabled {
@@ -158,7 +158,7 @@
 
 .auth-submit {
   padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3D8210;
   border: none;
   border-radius: 10px;
   color: white;
@@ -171,8 +171,9 @@
 }
 
 .auth-submit:hover:not(:disabled) {
+  background: #2D6409;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 20px rgba(61, 130, 16, 0.3);
 }
 
 .auth-submit:active:not(:disabled) {
