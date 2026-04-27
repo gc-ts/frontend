@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
+import { chatAPI, employeeAPI } from './services/api'
 
 function App() {
   const [chats, setChats] = useState([
@@ -28,20 +29,20 @@ function App() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
-  const [userProfile] = useState({
-    employeeId: 'EMP' + Math.floor(Math.random() * 10000),
-    email: 'ivanov.ivan@1221systems.ru',
-    fullName: 'Иванов Иван Петрович',
-    birthDate: '15.03.1990',
+  const [userProfile, setUserProfile] = useState({
+    employeeId: '12345',
+    email: 'a.potapov@company.ru',
+    fullName: 'Потапов Артем Павлович',
+    birthDate: '20.05.1990',
     workSchedule: '5/2, 09:00-18:00',
-    position: 'Senior Frontend Developer',
-    department: 'Отдел разработки',
-    vacationDays: Math.floor(Math.random() * 20) + 5,
-    nextVacation: '15.07.2026 - 29.07.2026',
+    position: 'Senior Developer',
+    department: 'IT',
+    vacationDays: 14,
+    nextVacation: '01.07.2026 - 14.07.2026',
     salary: {
-      advance: '45 000 ₽',
-      lastPayment: '90 000 ₽',
-      paymentDate: '10.04.2026'
+      advance: '75 000 ₽',
+      lastPayment: '150 000 ₽',
+      paymentDate: '05.04.2026'
     },
     benefits: {
       dms: 'Полис ДМС №12345678',
@@ -53,6 +54,29 @@ function App() {
       phone: '+7 (495) 123-45-67'
     }
   })
+
+  // Загрузка данных сотрудника при монтировании
+  useEffect(() => {
+    const loadEmployeeData = async () => {
+      try {
+        const data = await employeeAPI.getEmployee('12345')
+        setUserProfile(prev => ({
+          ...prev,
+          employeeId: data.id,
+          email: data.email,
+          fullName: data.fullName,
+          position: data.position,
+          department: data.department,
+          vacationDays: data.vacationDays,
+          birthDate: new Date(data.birthDate).toLocaleDateString('ru-RU')
+        }))
+      } catch (error) {
+        console.error('Failed to load employee data:', error)
+      }
+    }
+
+    loadEmployeeData()
+  }, [])
 
   useEffect(() => {
     document.body.className = theme
@@ -125,7 +149,7 @@ function App() {
     scrollToBottom()
   }, [messages])
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault()
     if (!inputValue.trim() || isTyping) return
 
@@ -142,23 +166,45 @@ function App() {
         : chat
     ))
 
+    const messageText = inputValue
     setInputValue('')
     setIsTyping(true)
 
-    setTimeout(() => {
+    try {
+      // Отправка сообщения в backend
+      const response = await chatAPI.sendMessage(messageText, userProfile.employeeId)
+
       const botMessage = {
         id: Date.now() + 1,
-        text: 'Спасибо за ваше сообщение! Я обрабатываю ваш запрос и постараюсь дать максимально полезный ответ.',
+        text: response.response,
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        source: response.source
       }
+
       setChats(prev => prev.map(chat =>
         chat.id === activeChat
           ? { ...chat, messages: [...chat.messages, botMessage] }
           : chat
       ))
+    } catch (error) {
+      console.error('Failed to send message:', error)
+
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: 'Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь в отдел кадров.',
+        sender: 'bot',
+        timestamp: new Date()
+      }
+
+      setChats(prev => prev.map(chat =>
+        chat.id === activeChat
+          ? { ...chat, messages: [...chat.messages, errorMessage] }
+          : chat
+      ))
+    } finally {
       setIsTyping(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -339,7 +385,14 @@ function App() {
                   )}
                 </div>
                 <div className="message-content">
-                  <div className="message-text">{message.text}</div>
+                  <div className="message-text">
+                    {message.text}
+                    {message.source && (
+                      <div className="message-source">
+                        <small>📄 Источник: {message.source}</small>
+                      </div>
+                    )}
+                  </div>
                   <div className="message-time">
                     {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                   </div>
