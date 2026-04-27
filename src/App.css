@@ -891,6 +891,35 @@ body.light .send-button:hover:not(:disabled) {
   font-family: 'Rubik', sans-serif;
 }
 
+.logout-btn {
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px 20px;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 10px;
+  color: #c33;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+  font-family: 'Rubik', sans-serif;
+}
+
+.logout-btn:hover {
+  background: #fdd;
+  border-color: #fbb;
+  transform: translateY(-1px);
+}
+
+.logout-btn svg {
+  flex-shrink: 0;
+}
+
 .profile-field {
   display: flex;
   justify-content: space-between;

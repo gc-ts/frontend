@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
+import Auth from './Auth.jsx'
 import { chatAPI, employeeAPI } from './services/api'
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authToken, setAuthToken] = useState(null)
+
   const [chats, setChats] = useState([
     {
       id: 1,
@@ -22,7 +26,7 @@ function App() {
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [theme, setTheme] = useState('dark')
+  const [theme, setTheme] = useState('light')
   const [editingChatId, setEditingChatId] = useState(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [showProfile, setShowProfile] = useState(false)
@@ -55,28 +59,49 @@ function App() {
     }
   })
 
-  // Загрузка данных сотрудника при монтировании
+  // Проверка авторизации при монтировании
   useEffect(() => {
-    const loadEmployeeData = async () => {
-      try {
-        const data = await employeeAPI.getEmployee('12345')
-        setUserProfile(prev => ({
-          ...prev,
-          employeeId: data.id,
-          email: data.email,
-          fullName: data.fullName,
-          position: data.position,
-          department: data.department,
-          vacationDays: data.vacationDays,
-          birthDate: new Date(data.birthDate).toLocaleDateString('ru-RU')
-        }))
-      } catch (error) {
-        console.error('Failed to load employee data:', error)
-      }
-    }
+    const token = localStorage.getItem('token');
+    const employee = localStorage.getItem('employee');
 
-    loadEmployeeData()
-  }, [])
+    if (token && employee) {
+      setAuthToken(token);
+      setIsAuthenticated(true);
+      const employeeData = JSON.parse(employee);
+      setUserProfile(prev => ({
+        ...prev,
+        employeeId: employeeData.employee_id,
+        email: employeeData.email,
+        fullName: employeeData.full_name,
+        position: employeeData.position,
+        department: employeeData.department,
+        vacationDays: employeeData.vacation_days,
+        birthDate: employeeData.birth_date ? new Date(employeeData.birth_date).toLocaleDateString('ru-RU') : prev.birthDate
+      }));
+    }
+  }, []);
+
+  const handleLogin = (employee, token) => {
+    setAuthToken(token);
+    setIsAuthenticated(true);
+    setUserProfile(prev => ({
+      ...prev,
+      employeeId: employee.employee_id,
+      email: employee.email,
+      fullName: employee.full_name,
+      position: employee.position,
+      department: employee.department,
+      vacationDays: employee.vacation_days,
+      birthDate: employee.birth_date ? new Date(employee.birth_date).toLocaleDateString('ru-RU') : prev.birthDate
+    }));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('employee');
+    setAuthToken(null);
+    setIsAuthenticated(false);
+  };
 
   useEffect(() => {
     document.body.className = theme
@@ -205,6 +230,10 @@ function App() {
     } finally {
       setIsTyping(false)
     }
+  }
+
+  if (!isAuthenticated) {
+    return <Auth onLogin={handleLogin} />;
   }
 
   return (
@@ -569,6 +598,15 @@ function App() {
                   <span className="field-value">{userProfile.hrContact.phone}</span>
                 </div>
               </div>
+
+              <button className="logout-btn" onClick={handleLogout}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Выйти из аккаунта
+              </button>
             </div>
           </div>
         </div>
