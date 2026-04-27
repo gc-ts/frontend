@@ -370,10 +370,16 @@ function App() {
             }}
           >
             <div className="avatar">
-              {userProfile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              {userProfile.fullName ? userProfile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'АП'}
             </div>
             <div className="user-info">
-              <div className="user-name">{userProfile.fullName.split(' ')[0]} {userProfile.fullName.split(' ')[1][0]}.</div>
+              <div className="user-name">
+                {userProfile.fullName ? (
+                  userProfile.fullName.split(' ').length > 1
+                    ? `${userProfile.fullName.split(' ')[0]} ${userProfile.fullName.split(' ')[1][0]}.`
+                    : userProfile.fullName
+                ) : 'Пользователь'}
+              </div>
               <div className="user-status">Онлайн</div>
             </div>
           </div>
@@ -466,7 +472,9 @@ function App() {
                       </svg>
                     </div>
                   ) : (
-                    <div className="user-avatar">АП</div>
+                    <div className="user-avatar">
+                      {userProfile.fullName ? userProfile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'U'}
+                    </div>
                   )}
                 </div>
                 <div className="message-content">
