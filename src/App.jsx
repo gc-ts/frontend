@@ -302,18 +302,47 @@ function App() {
     } catch (error) {
       console.error('Failed to send message:', error)
 
+      const errorText = 'Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь в отдел кадров.';
+      let currentText = '';
+      const errorMessageId = Date.now() + 1;
+
+      // Добавляем пустое сообщение об ошибке
       const errorMessage = {
-        id: Date.now() + 1,
-        text: 'Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь в отдел кадров.',
+        id: errorMessageId,
+        text: '',
         sender: 'bot',
-        timestamp: new Date()
-      }
+        timestamp: new Date(),
+        isTyping: true
+      };
 
       setChats(prev => prev.map(chat =>
         chat.id === activeChat
           ? { ...chat, messages: [...chat.messages, errorMessage] }
           : chat
-      ))
+      ));
+
+      // Анимация печати для ошибки
+      const typingSpeed = 20;
+      for (let i = 0; i <= errorText.length; i++) {
+        currentText = errorText.slice(0, i);
+
+        setChats(prev => prev.map(chat =>
+          chat.id === activeChat
+            ? {
+                ...chat,
+                messages: chat.messages.map(msg =>
+                  msg.id === errorMessageId
+                    ? { ...msg, text: currentText, isTyping: i < errorText.length }
+                    : msg
+                )
+              }
+            : chat
+        ));
+
+        if (i < errorText.length) {
+          await new Promise(resolve => setTimeout(resolve, typingSpeed));
+        }
+      }
     } finally {
       setIsTyping(false)
     }
@@ -542,8 +571,10 @@ function App() {
                   </div>
                 </div>
                 <div className="message-content">
-                  <div className="typing-indicator-pulse">
-                    <div className="pulse-dot"></div>
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
                 </div>
               </div>
