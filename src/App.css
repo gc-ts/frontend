@@ -660,9 +660,9 @@ body.light .user-avatar {
 }
 
 body.light .message-wrapper.user .message-text {
-  background: var(--accent-primary);
-  color: white;
-  border-color: var(--accent-primary);
+  background: #D4ECC4;
+  color: #2D6409;
+  border-color: #B8DFA4;
 }
 
 .message-time {

@@ -255,6 +255,9 @@ function App() {
       // Отправка сообщения в backend
       const response = await chatAPI.sendMessage(messageText, userProfile.employeeId)
 
+      // Убираем индикатор ожидания после получения ответа
+      setIsTyping(false)
+
       // Имитация печати - показываем текст постепенно
       const fullText = response.response;
       let currentText = '';
@@ -302,6 +305,9 @@ function App() {
     } catch (error) {
       console.error('Failed to send message:', error)
 
+      // Убираем индикатор ожидания после ошибки
+      setIsTyping(false)
+
       const errorText = 'Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь в отдел кадров.';
       let currentText = '';
       const errorMessageId = Date.now() + 1;
@@ -343,8 +349,6 @@ function App() {
           await new Promise(resolve => setTimeout(resolve, typingSpeed));
         }
       }
-    } finally {
-      setIsTyping(false)
     }
   }
 
