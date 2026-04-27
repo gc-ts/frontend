@@ -255,19 +255,50 @@ function App() {
       // Отправка сообщения в backend
       const response = await chatAPI.sendMessage(messageText, userProfile.employeeId)
 
+      // Имитация печати - показываем текст постепенно
+      const fullText = response.response;
+      let currentText = '';
+      const botMessageId = Date.now() + 1;
+
+      // Добавляем пустое сообщение бота
       const botMessage = {
-        id: Date.now() + 1,
-        text: response.response,
+        id: botMessageId,
+        text: '',
         sender: 'bot',
         timestamp: new Date(),
-        source: response.source
-      }
+        source: response.source,
+        isTyping: true
+      };
 
       setChats(prev => prev.map(chat =>
         chat.id === activeChat
           ? { ...chat, messages: [...chat.messages, botMessage] }
           : chat
-      ))
+      ));
+
+      // Анимация печати
+      const typingSpeed = 20; // миллисекунды на символ
+      for (let i = 0; i <= fullText.length; i++) {
+        currentText = fullText.slice(0, i);
+
+        setChats(prev => prev.map(chat =>
+          chat.id === activeChat
+            ? {
+                ...chat,
+                messages: chat.messages.map(msg =>
+                  msg.id === botMessageId
+                    ? { ...msg, text: currentText, isTyping: i < fullText.length }
+                    : msg
+                )
+              }
+            : chat
+        ));
+
+        if (i < fullText.length) {
+          await new Promise(resolve => setTimeout(resolve, typingSpeed));
+        }
+      }
+
     } catch (error) {
       console.error('Failed to send message:', error)
 
@@ -480,7 +511,10 @@ function App() {
                 <div className="message-content">
                   <div className="message-text">
                     {message.text}
-                    {message.source && (
+                    {message.isTyping && (
+                      <span className="typing-cursor">|</span>
+                    )}
+                    {message.source && !message.isTyping && (
                       <div className="message-source">
                         <small>📄 Источник: {message.source}</small>
                       </div>
@@ -508,10 +542,8 @@ function App() {
                   </div>
                 </div>
                 <div className="message-content">
-                  <div className="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                  <div className="typing-indicator-pulse">
+                    <div className="pulse-dot"></div>
                   </div>
                 </div>
               </div>
