@@ -150,6 +150,16 @@ function ArticleView({ article, onBack, currentUser }) {
         >
           ← Назад
         </button>
+        <h1 style={{
+          fontFamily: "'Fraunces', serif",
+          fontSize: '24px',
+          fontWeight: '400',
+          color: 'var(--ink)',
+          margin: 0,
+          flexShrink: 0
+        }}>
+          {article.icon} {article.title}
+        </h1>
         <div style={{
           fontSize: '10px',
           letterSpacing: '.14em',
@@ -160,16 +170,6 @@ function ArticleView({ article, onBack, currentUser }) {
         }}>
           {article.category}
         </div>
-        <h1 style={{
-          fontFamily: "'Fraunces', serif",
-          fontSize: '24px',
-          fontWeight: '400',
-          color: 'var(--ink)',
-          margin: 0,
-          flex: 1
-        }}>
-          {article.icon} {article.title}
-        </h1>
       </div>
 
       {/* Content */}
