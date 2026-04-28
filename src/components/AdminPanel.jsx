@@ -14,12 +14,29 @@ function AdminPanel({ currentUser, onBack }) {
   const [isReindexing, setIsReindexing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadDocuments();
-    loadCategories();
-    loadIndexStatus();
+    loadInitialData();
   }, []);
+
+  const loadInitialData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await Promise.all([
+        loadDocuments(),
+        loadCategories(),
+        loadIndexStatus()
+      ]);
+    } catch (err) {
+      console.error('Failed to load initial data:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadDocuments = async () => {
     try {
@@ -224,7 +241,31 @@ function AdminPanel({ currentUser, onBack }) {
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
-        {activeTab === 'documents' && (
+        {isLoading ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '200px',
+            fontSize: '14px',
+            color: 'var(--ink-3)',
+            fontFamily: "'JetBrains Mono', monospace"
+          }}>
+            Загрузка...
+          </div>
+        ) : error ? (
+          <div style={{
+            background: 'var(--paper)',
+            border: '1px solid var(--hot)',
+            padding: '24px',
+            color: 'var(--hot)',
+            fontSize: '14px'
+          }}>
+            Ошибка: {error}
+          </div>
+        ) : (
+          <>
+            {activeTab === 'documents' && (
           <div>
             <h2 style={{
               fontFamily: "'Fraunces', serif",
@@ -547,6 +588,8 @@ function AdminPanel({ currentUser, onBack }) {
               )}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
