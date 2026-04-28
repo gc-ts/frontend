@@ -44,18 +44,25 @@ function Auth({ onLogin }) {
     setError('');
 
     try {
-      await authAPI.register(
+      const data = await authAPI.register(
         formData.employeeId,
         formData.email,
         formData.password,
         formData.fullName
       );
-      setFormData({
-        ...formData,
-        login: formData.employeeId
-      });
-      setIsLogin(true);
-      setError('success:Регистрация успешна! Теперь войдите.');
+
+      // Автоматический вход после регистрации
+      if (data.token && data.employee) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('employee', JSON.stringify(data.employee));
+        onLogin(data.employee, data.token);
+      } else {
+        // Если токен не вернулся, делаем автоматический логин
+        const loginData = await authAPI.login(formData.employeeId, formData.password);
+        localStorage.setItem('token', loginData.token);
+        localStorage.setItem('employee', JSON.stringify(loginData.employee));
+        onLogin(loginData.employee, loginData.token);
+      }
     } catch (err) {
       setError('Ошибка регистрации. Попробуйте снова.');
     } finally {

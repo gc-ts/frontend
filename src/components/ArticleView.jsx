@@ -136,7 +136,8 @@ function ArticleView({ article, onBack, currentUser }) {
             fontSize: '11px',
             letterSpacing: '.08em',
             textTransform: 'uppercase',
-            transition: '.2s'
+            transition: '.2s',
+            flexShrink: 0
           }}
           onMouseEnter={(e) => {
             e.target.style.borderColor = 'var(--moss)';
@@ -149,27 +150,26 @@ function ArticleView({ article, onBack, currentUser }) {
         >
           ← Назад
         </button>
-        <div>
-          <div style={{
-            fontSize: '10px',
-            letterSpacing: '.14em',
-            textTransform: 'uppercase',
-            color: 'var(--ink-3)',
-            fontFamily: "'JetBrains Mono', monospace",
-            marginBottom: '4px'
-          }}>
-            {article.category}
-          </div>
-          <h1 style={{
-            fontFamily: "'Fraunces', serif",
-            fontSize: '24px',
-            fontWeight: '400',
-            color: 'var(--ink)',
-            margin: 0
-          }}>
-            {article.icon} {article.title}
-          </h1>
+        <div style={{
+          fontSize: '10px',
+          letterSpacing: '.14em',
+          textTransform: 'uppercase',
+          color: 'var(--ink-3)',
+          fontFamily: "'JetBrains Mono', monospace",
+          flexShrink: 0
+        }}>
+          {article.category}
         </div>
+        <h1 style={{
+          fontFamily: "'Fraunces', serif",
+          fontSize: '24px',
+          fontWeight: '400',
+          color: 'var(--ink)',
+          margin: 0,
+          flex: 1
+        }}>
+          {article.icon} {article.title}
+        </h1>
       </div>
 
       {/* Content */}
