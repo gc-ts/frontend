@@ -6,6 +6,7 @@ import TopicView from './components/TopicView.jsx'
 import ProfileModal from './components/ProfileModal.jsx'
 import ForumList from './components/ForumList.jsx'
 import ArticleView from './components/ArticleView.jsx'
+import AdminPanel from './components/AdminPanel.jsx'
 import { forumArticles, forumCategories } from './data/forumArticles.js'
 
 // Моковые категории и темы для бокового меню
@@ -22,7 +23,7 @@ function App() {
   const [authToken, setAuthToken] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
   const [theme, setTheme] = useState('light')
-  const [currentView, setCurrentView] = useState('chat') // 'chat', 'forum', 'topic', 'article'
+  const [currentView, setCurrentView] = useState('chat') // 'chat', 'forum', 'topic', 'article', 'admin'
   const [selectedTopic, setSelectedTopic] = useState(null)
   const [selectedArticle, setSelectedArticle] = useState(null)
   const [showChatsList, setShowChatsList] = useState(true) // Показывать список чатов
@@ -49,6 +50,7 @@ function App() {
         phone: employeeData.phone,
         birthDate: employeeData.birth_date,
         hireDate: employeeData.hire_date,
+        role: employeeData.role || 'employee',
         avatar: null
       });
 
@@ -137,6 +139,7 @@ function App() {
       phone: employee.phone,
       birthDate: employee.birth_date,
       hireDate: employee.hire_date,
+      role: employee.role || 'employee',
       avatar: null
     });
     loadChats(empId);
@@ -181,6 +184,11 @@ function App() {
   const goToChat = () => {
     setCurrentView('chat');
     setShowChatsList(true);
+  };
+
+  const openAdmin = () => {
+    setCurrentView('admin');
+    setShowChatsList(false);
   };
 
   if (!isAuthenticated) {
@@ -240,6 +248,23 @@ function App() {
               </svg>
             )}
           </button>
+
+          {currentUser?.role === 'admin' && (
+            <button
+              className="ghost-btn"
+              onClick={openAdmin}
+              title="Админ-панель"
+              style={{
+                background: currentView === 'admin' ? 'var(--moss)' : 'transparent',
+                color: currentView === 'admin' ? 'var(--paper)' : 'var(--ink-2)'
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </button>
+          )}
 
           <button className="user-menu-btn" onClick={() => setShowProfile(true)} title="Профиль">
             <div className="avatar">
@@ -531,6 +556,12 @@ function App() {
           {currentView === 'topic' && selectedTopic && (
             <TopicView
               topic={selectedTopic}
+              currentUser={currentUser}
+              onBack={goToChat}
+            />
+          )}
+          {currentView === 'admin' && (
+            <AdminPanel
               currentUser={currentUser}
               onBack={goToChat}
             />
