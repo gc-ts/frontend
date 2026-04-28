@@ -258,6 +258,24 @@ function App() {
 
       {/* Main layout */}
       <div style={{ display: 'flex', height: 'calc(100vh - 61px)', position: 'relative', zIndex: 2 }}>
+        {/* Mobile sidebar overlay */}
+        {isMobileSidebarOpen && (
+          <div
+            onClick={() => setIsMobileSidebarOpen(false)}
+            style={{
+              position: 'fixed',
+              top: '61px',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+              display: 'none'
+            }}
+            className="mobile-sidebar-overlay"
+          />
+        )}
+
         {/* Mobile sidebar toggle button */}
         <button
           onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}

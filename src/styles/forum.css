@@ -906,6 +906,10 @@ em { font-style: italic; font-family: 'Fraunces', serif; font-weight: 400; }
   .mobile-sidebar-toggle {
     display: flex !important;
   }
+
+  .mobile-sidebar-overlay {
+    display: block !important;
+  }
 }
 
 @media (max-width: 480px) {
