@@ -26,9 +26,11 @@ function App() {
   const [authToken, setAuthToken] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
   const [theme, setTheme] = useState('light')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [currentView, setCurrentView] = useState('chat') // 'chat', 'forum', 'topic'
   const [selectedTopic, setSelectedTopic] = useState(null)
+  const [showChatsList, setShowChatsList] = useState(true) // Показывать список чатов
+  const [chats, setChats] = useState([])
+  const [activeChat, setActiveChat] = useState(null)
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -47,6 +49,9 @@ function App() {
         department: employeeData.department,
         avatar: null
       });
+
+      // Загрузка чатов пользователя
+      loadChats(employeeData.employee_id);
     }
 
     const savedTheme = localStorage.getItem('forum.theme') || 'light';
@@ -54,18 +59,82 @@ function App() {
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
+  const loadChats = (employeeId) => {
+    const storageKey = `chats_${employeeId}`;
+    const savedChats = localStorage.getItem(storageKey);
+
+    if (savedChats) {
+      const parsedChats = JSON.parse(savedChats);
+      setChats(parsedChats);
+      if (parsedChats.length > 0) {
+        setActiveChat(parsedChats[0].id);
+      }
+    } else {
+      // Создаем первый чат
+      const initialChat = {
+        id: Date.now(),
+        title: 'Новый чат',
+        messages: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setChats([initialChat]);
+      setActiveChat(initialChat.id);
+      localStorage.setItem(storageKey, JSON.stringify([initialChat]));
+    }
+  };
+
+  const createNewChat = () => {
+    const newChat = {
+      id: Date.now(),
+      title: 'Новый чат',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const storageKey = `chats_${currentUser.employeeId}`;
+    const updatedChats = [newChat, ...chats];
+    setChats(updatedChats);
+    setActiveChat(newChat.id);
+    localStorage.setItem(storageKey, JSON.stringify(updatedChats));
+    setCurrentView('chat');
+  };
+
+  const handleChatChange = () => {
+    // Перезагрузка чатов после изменения
+    loadChats(currentUser.employeeId);
+  };
+
+  const formatChatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (minutes < 60) return `${minutes} мин. назад`;
+    if (hours < 24) return `${hours} ч. назад`;
+    if (days === 0) return 'Сегодня';
+    if (days === 1) return 'Вчера';
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  };
+
   const handleLogin = (employee, token) => {
     setAuthToken(token);
     setIsAuthenticated(true);
+    const empId = employee.employee_id;
     setCurrentUser({
       id: employee.id,
-      employeeId: employee.employee_id,
+      employeeId: empId,
       email: employee.email,
       fullName: employee.full_name,
       position: employee.position,
       department: employee.department,
       avatar: null
     });
+    loadChats(empId);
   };
 
   const handleLogout = () => {
@@ -75,6 +144,8 @@ function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setCurrentView('chat');
+    setChats([]);
+    setActiveChat(null);
   };
 
   const toggleTheme = () => {
@@ -86,18 +157,18 @@ function App() {
 
   const openForum = () => {
     setCurrentView('forum');
-    setSidebarOpen(false);
+    setShowChatsList(false);
   };
 
   const openTopic = (topic) => {
     setSelectedTopic(topic);
     setCurrentView('topic');
-    setSidebarOpen(false);
+    setShowChatsList(false);
   };
 
   const goToChat = () => {
     setCurrentView('chat');
-    setSidebarOpen(false);
+    setShowChatsList(true);
   };
 
   if (!isAuthenticated) {
@@ -128,6 +199,20 @@ function App() {
         </div>
 
         <div className="topbar-actions">
+          <button
+            className="ghost-btn"
+            onClick={() => setShowChatsList(!showChatsList)}
+            title={showChatsList ? "Скрыть чаты" : "Показать чаты"}
+            style={{
+              background: showChatsList ? 'var(--moss)' : 'transparent',
+              color: showChatsList ? 'var(--paper)' : 'var(--ink-2)'
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+
           <button className="ghost-btn" onClick={toggleTheme} title="Сменить тему">
             {theme === 'dark' ? (
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -139,12 +224,6 @@ function App() {
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
             )}
-          </button>
-
-          <button className="ghost-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Меню">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M3 12h18M3 6h18M3 18h18" strokeLinecap="round"/>
-            </svg>
           </button>
 
           <button className="user-menu-btn" onClick={handleLogout} title="Профиль">
@@ -164,67 +243,140 @@ function App() {
 
       {/* Main layout */}
       <div style={{ display: 'flex', height: 'calc(100vh - 61px)', position: 'relative', zIndex: 2 }}>
-        {/* Sidebar with forum */}
-        <aside className={`forum-sidebar ${sidebarOpen ? 'open' : ''}`} style={{
-          width: sidebarOpen ? '320px' : '0',
-          minWidth: sidebarOpen ? '320px' : '0',
-          borderRight: sidebarOpen ? '1px solid var(--line)' : 'none',
+        {/* Sidebar */}
+        <aside style={{
+          width: '320px',
+          minWidth: '320px',
+          borderRight: '1px solid var(--line)',
           background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg-2) 30%, transparent))',
           overflowY: 'auto',
           overflowX: 'hidden',
-          transition: 'all .3s',
-          padding: sidebarOpen ? '28px 24px' : '0'
+          padding: '28px 24px'
         }}>
-          {sidebarOpen && (
-            <>
-              <div style={{ marginBottom: '24px' }}>
-                <button
-                  onClick={goToChat}
-                  style={{
-                    width: '100%',
-                    background: currentView === 'chat' ? 'var(--ink)' : 'transparent',
-                    color: currentView === 'chat' ? 'var(--bg)' : 'var(--ink)',
-                    border: '1px solid var(--line)',
-                    padding: '12px 16px',
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '11px',
-                    letterSpacing: '.08em',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer',
-                    transition: '.2s',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <span>🤖</span> AI-Чат
-                </button>
-                <button
-                  onClick={openForum}
-                  style={{
-                    width: '100%',
-                    background: currentView === 'forum' ? 'var(--ink)' : 'transparent',
-                    color: currentView === 'forum' ? 'var(--bg)' : 'var(--ink)',
-                    border: '1px solid var(--line)',
-                    padding: '12px 16px',
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '11px',
-                    letterSpacing: '.08em',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer',
-                    transition: '.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <span>💬</span> Форум
-                </button>
-              </div>
+          {/* Tabs */}
+          <div style={{ marginBottom: '24px' }}>
+            <button
+              onClick={goToChat}
+              style={{
+                width: '100%',
+                background: currentView === 'chat' && showChatsList ? 'var(--ink)' : 'transparent',
+                color: currentView === 'chat' && showChatsList ? 'var(--bg)' : 'var(--ink)',
+                border: '1px solid var(--line)',
+                padding: '12px 16px',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '11px',
+                letterSpacing: '.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: '.2s',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                justifyContent: 'center'
+              }}
+            >
+              <span>🤖</span> AI-Чат
+            </button>
+            <button
+              onClick={openForum}
+              style={{
+                width: '100%',
+                background: currentView === 'forum' || currentView === 'topic' ? 'var(--ink)' : 'transparent',
+                color: currentView === 'forum' || currentView === 'topic' ? 'var(--bg)' : 'var(--ink)',
+                border: '1px solid var(--line)',
+                padding: '12px 16px',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '11px',
+                letterSpacing: '.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: '.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                justifyContent: 'center'
+              }}
+            >
+              <span>💬</span> Форум
+            </button>
+          </div>
 
+          {/* Chats list */}
+          {showChatsList && currentView === 'chat' && (
+            <>
+              <button
+                onClick={createNewChat}
+                style={{
+                  width: '100%',
+                  background: 'var(--pistachio)',
+                  color: 'var(--pistachio-ink)',
+                  border: 'none',
+                  padding: '12px 16px',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: '11px',
+                  letterSpacing: '.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  transition: '.2s',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'var(--moss)'}
+                onMouseLeave={(e) => e.target.style.background = 'var(--pistachio)'}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M7 2v10M2 7h10"/>
+                </svg>
+                Новый чат
+              </button>
+
+              <span className="kicker" style={{ display: 'block', marginBottom: '12px' }}>Ваши чаты</span>
+              {chats.map(chat => (
+                <div
+                  key={chat.id}
+                  onClick={() => {
+                    setActiveChat(chat.id);
+                    setCurrentView('chat');
+                  }}
+                  style={{
+                    padding: '12px',
+                    cursor: 'pointer',
+                    borderLeft: `2px solid ${activeChat === chat.id ? 'var(--pistachio)' : 'transparent'}`,
+                    background: activeChat === chat.id ? 'var(--paper)' : 'transparent',
+                    transition: '.2s',
+                    marginBottom: '4px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeChat !== chat.id) {
+                      e.currentTarget.style.background = 'var(--paper)';
+                      e.currentTarget.style.borderLeftColor = 'var(--moss)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeChat !== chat.id) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.borderLeftColor = 'transparent';
+                    }
+                  }}
+                >
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--ink)', marginBottom: '4px' }}>
+                    {chat.title}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--ink-3)', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {formatChatDate(chat.updatedAt)} · {chat.messages.length} сообщ.
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Forum categories */}
+          {(currentView === 'forum' || currentView === 'topic') && (
+            <>
               <div style={{ marginBottom: '24px' }}>
                 <span className="kicker" style={{ display: 'block', marginBottom: '12px' }}>Категории</span>
                 {FORUM_CATEGORIES.map(cat => (
@@ -298,24 +450,14 @@ function App() {
           )}
         </aside>
 
-        {/* Overlay for mobile */}
-        {sidebarOpen && (
-          <div
-            onClick={() => setSidebarOpen(false)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.3)',
-              zIndex: 1,
-              display: window.innerWidth < 768 ? 'block' : 'none'
-            }}
-          ></div>
-        )}
-
         {/* Main content */}
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {currentView === 'chat' && (
-            <ChatMain currentUser={currentUser} />
+            <ChatMain
+              currentUser={currentUser}
+              activeChat={activeChat}
+              onChatChange={handleChatChange}
+            />
           )}
           {currentView === 'forum' && (
             <div style={{ padding: '48px', overflowY: 'auto', height: '100%' }}>
@@ -343,23 +485,6 @@ function App() {
           )}
         </main>
       </div>
-
-      <style>{`
-        .forum-sidebar {
-          position: relative;
-          z-index: 2;
-        }
-        @media (max-width: 768px) {
-          .forum-sidebar {
-            position: fixed;
-            left: 0;
-            top: 61px;
-            height: calc(100vh - 61px);
-            z-index: 10;
-            background: var(--bg) !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }

@@ -1,18 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
 import { chatAPI } from '../services/api'
 
-function ChatMain({ currentUser }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: 'Привет! Я — AI-ассистент «Техна». Задавайте вопросы по HR-процессам, отпускам, документам компании.',
-      sender: 'bot',
-      timestamp: new Date()
-    }
-  ]);
+function ChatMain({ currentUser, activeChat, onChatChange }) {
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Загрузка сообщений при смене чата
+  useEffect(() => {
+    if (activeChat) {
+      const savedChats = localStorage.getItem(`chats_${currentUser.employeeId}`);
+      if (savedChats) {
+        const chats = JSON.parse(savedChats);
+        const chat = chats.find(c => c.id === activeChat);
+        if (chat) {
+          setMessages(chat.messages.map(msg => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          })));
+        }
+      }
+    }
+  }, [activeChat, currentUser.employeeId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,6 +31,26 @@ function ChatMain({ currentUser }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const saveChat = (updatedMessages) => {
+    const storageKey = `chats_${currentUser.employeeId}`;
+    const savedChats = localStorage.getItem(storageKey);
+    const chats = savedChats ? JSON.parse(savedChats) : [];
+
+    const chatIndex = chats.findIndex(c => c.id === activeChat);
+    if (chatIndex >= 0) {
+      chats[chatIndex].messages = updatedMessages;
+      chats[chatIndex].updatedAt = new Date().toISOString();
+      // Обновляем заголовок чата на основе первого сообщения пользователя
+      const firstUserMsg = updatedMessages.find(m => m.sender === 'user');
+      if (firstUserMsg) {
+        chats[chatIndex].title = firstUserMsg.text.slice(0, 50) + (firstUserMsg.text.length > 50 ? '...' : '');
+      }
+    }
+
+    localStorage.setItem(storageKey, JSON.stringify(chats));
+    onChatChange(); // Уведомляем родителя об изменении
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -33,7 +63,10 @@ function ChatMain({ currentUser }) {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    saveChat(updatedMessages);
+
     const messageText = inputValue;
     setInputValue('');
     setIsTyping(true);
@@ -48,13 +81,12 @@ function ChatMain({ currentUser }) {
         text: '',
         sender: 'bot',
         timestamp: new Date(),
-        source: '',
-        isTyping: true
+        source: ''
       };
 
-      setMessages(prev => [...prev, botMessage]);
+      const messagesWithBot = [...updatedMessages, botMessage];
+      setMessages(messagesWithBot);
 
-      // Используем стриминг API
       await chatAPI.sendMessageStream(messageText, currentUser?.employeeId, (data) => {
         if (data.type === 'context' && data.source) {
           source = data.source;
@@ -62,15 +94,17 @@ function ChatMain({ currentUser }) {
           fullText += data.delta;
           setMessages(prev => prev.map(msg =>
             msg.id === botMessageId
-              ? { ...msg, text: fullText, source: source, isTyping: true }
+              ? { ...msg, text: fullText, source: source }
               : msg
           ));
         } else if (data.type === 'done') {
-          setMessages(prev => prev.map(msg =>
+          const finalMessages = messagesWithBot.map(msg =>
             msg.id === botMessageId
-              ? { ...msg, isTyping: false }
+              ? { ...msg, text: fullText, source: source }
               : msg
-          ));
+          );
+          setMessages(finalMessages);
+          saveChat(finalMessages);
         }
       });
 
@@ -83,12 +117,16 @@ function ChatMain({ currentUser }) {
       const errorText = 'Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.';
       const errorMessageId = Date.now() + 1;
 
-      setMessages(prev => [...prev, {
+      const errorMessage = {
         id: errorMessageId,
         text: errorText,
         sender: 'bot',
         timestamp: new Date()
-      }]);
+      };
+
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
+      saveChat(finalMessages);
     }
   };
 
@@ -172,17 +210,7 @@ function ChatMain({ currentUser }) {
                 whiteSpace: 'pre-wrap'
               }}>
                 {message.text}
-                {message.isTyping && (
-                  <span style={{
-                    display: 'inline-block',
-                    width: '2px',
-                    height: '1em',
-                    background: 'var(--ink)',
-                    marginLeft: '2px',
-                    animation: 'blink 1s infinite'
-                  }}>|</span>
-                )}
-                {message.source && !message.isTyping && (
+                {message.source && (
                   <div style={{
                     marginTop: '12px',
                     paddingTop: '12px',
@@ -262,7 +290,7 @@ function ChatMain({ currentUser }) {
       </div>
 
       {/* Quick questions */}
-      {messages.length === 1 && (
+      {messages.length === 0 && (
         <div style={{
           padding: '0 32px 16px',
           display: 'flex',
@@ -384,10 +412,6 @@ function ChatMain({ currentUser }) {
         @keyframes pulse {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.2); }
-        }
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
         }
       `}</style>
     </div>
