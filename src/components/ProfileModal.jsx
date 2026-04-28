@@ -107,6 +107,30 @@ function ProfileModal({ user, onClose, onLogout }) {
               fontFamily: "'JetBrains Mono', monospace",
               marginBottom: '6px'
             }}>
+              Табельный номер
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--ink)',
+              fontFamily: "'Inter', sans-serif"
+            }}>
+              {user?.employeeId || '—'}
+            </div>
+          </div>
+
+          <div style={{
+            padding: '16px',
+            background: 'var(--bg)',
+            border: '1px solid var(--line)'
+          }}>
+            <div style={{
+              fontSize: '10px',
+              letterSpacing: '.14em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-3)',
+              fontFamily: "'JetBrains Mono', monospace",
+              marginBottom: '6px'
+            }}>
               Email
             </div>
             <div style={{
@@ -165,6 +189,84 @@ function ProfileModal({ user, onClose, onLogout }) {
               {user?.department || '—'}
             </div>
           </div>
+
+          {user?.phone && (
+            <div style={{
+              padding: '16px',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)'
+            }}>
+              <div style={{
+                fontSize: '10px',
+                letterSpacing: '.14em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-3)',
+                fontFamily: "'JetBrains Mono', monospace",
+                marginBottom: '6px'
+              }}>
+                Телефон
+              </div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--ink)',
+                fontFamily: "'Inter', sans-serif"
+              }}>
+                {user.phone}
+              </div>
+            </div>
+          )}
+
+          {user?.birthDate && (
+            <div style={{
+              padding: '16px',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)'
+            }}>
+              <div style={{
+                fontSize: '10px',
+                letterSpacing: '.14em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-3)',
+                fontFamily: "'JetBrains Mono', monospace",
+                marginBottom: '6px'
+              }}>
+                Дата рождения
+              </div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--ink)',
+                fontFamily: "'Inter', sans-serif"
+              }}>
+                {new Date(user.birthDate).toLocaleDateString('ru-RU')}
+              </div>
+            </div>
+          )}
+
+          {user?.hireDate && (
+            <div style={{
+              padding: '16px',
+              background: 'var(--bg)',
+              border: '1px solid var(--line)'
+            }}>
+              <div style={{
+                fontSize: '10px',
+                letterSpacing: '.14em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-3)',
+                fontFamily: "'JetBrains Mono', monospace",
+                marginBottom: '6px'
+              }}>
+                Дата приема на работу
+              </div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--ink)',
+                fontFamily: "'Inter', sans-serif"
+              }}>
+                {new Date(user.hireDate).toLocaleDateString('ru-RU')}
+              </div>
+            </div>
+          )}
         </div>
 
         <button

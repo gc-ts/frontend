@@ -49,6 +49,9 @@ function App() {
         fullName: employeeData.full_name,
         position: employeeData.position,
         department: employeeData.department,
+        phone: employeeData.phone,
+        birthDate: employeeData.birth_date,
+        hireDate: employeeData.hire_date,
         avatar: null
       });
 
@@ -134,6 +137,9 @@ function App() {
       fullName: employee.full_name,
       position: employee.position,
       department: employee.department,
+      phone: employee.phone,
+      birthDate: employee.birth_date,
+      hireDate: employee.hire_date,
       avatar: null
     });
     loadChats(empId);
