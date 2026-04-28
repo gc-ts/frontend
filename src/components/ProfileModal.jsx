@@ -11,7 +11,8 @@ function ProfileModal({ user, onClose, onLogout }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999
+        zIndex: 9999,
+        padding: '16px'
       }}
       onClick={onClose}
     >
@@ -19,9 +20,11 @@ function ProfileModal({ user, onClose, onLogout }) {
         style={{
           background: 'var(--paper)',
           border: '1px solid var(--line)',
-          width: '90%',
+          width: '100%',
           maxWidth: '480px',
-          padding: '32px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: '24px',
           position: 'relative'
         }}
         onClick={(e) => e.stopPropagation()}
@@ -50,11 +53,11 @@ function ProfileModal({ user, onClose, onLogout }) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          marginBottom: '32px'
+          marginBottom: '24px'
         }}>
           <div style={{
-            width: '80px',
-            height: '80px',
+            width: '64px',
+            height: '64px',
             borderRadius: '999px',
             background: 'var(--sage)',
             color: 'var(--paper)',
@@ -62,24 +65,25 @@ function ProfileModal({ user, onClose, onLogout }) {
             placeItems: 'center',
             fontFamily: "'Fraunces', serif",
             fontWeight: '500',
-            fontSize: '28px',
-            marginBottom: '16px'
+            fontSize: '24px',
+            marginBottom: '12px'
           }}>
             {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'U'}
           </div>
 
           <h2 style={{
             fontFamily: "'Fraunces', serif",
-            fontSize: '24px',
+            fontSize: '20px',
             fontWeight: '400',
             color: 'var(--ink)',
-            margin: '0 0 4px'
+            margin: '0 0 4px',
+            textAlign: 'center'
           }}>
             {user?.fullName || 'Пользователь'}
           </h2>
 
           <div style={{
-            fontSize: '12px',
+            fontSize: '11px',
             color: 'var(--ink-3)',
             fontFamily: "'JetBrains Mono', monospace",
             letterSpacing: '.05em'
@@ -91,11 +95,11 @@ function ProfileModal({ user, onClose, onLogout }) {
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
-          marginBottom: '32px'
+          gap: '12px',
+          marginBottom: '24px'
         }}>
           <div style={{
-            padding: '16px',
+            padding: '12px',
             background: 'var(--bg)',
             border: '1px solid var(--line)'
           }}>
@@ -119,7 +123,7 @@ function ProfileModal({ user, onClose, onLogout }) {
           </div>
 
           <div style={{
-            padding: '16px',
+            padding: '12px',
             background: 'var(--bg)',
             border: '1px solid var(--line)'
           }}>
@@ -136,14 +140,15 @@ function ProfileModal({ user, onClose, onLogout }) {
             <div style={{
               fontSize: '14px',
               color: 'var(--ink)',
-              fontFamily: "'Inter', sans-serif"
+              fontFamily: "'Inter', sans-serif",
+              wordBreak: 'break-word'
             }}>
               {user?.email || '—'}
             </div>
           </div>
 
           <div style={{
-            padding: '16px',
+            padding: '12px',
             background: 'var(--bg)',
             border: '1px solid var(--line)'
           }}>
@@ -167,7 +172,7 @@ function ProfileModal({ user, onClose, onLogout }) {
           </div>
 
           <div style={{
-            padding: '16px',
+            padding: '12px',
             background: 'var(--bg)',
             border: '1px solid var(--line)'
           }}>
@@ -192,7 +197,7 @@ function ProfileModal({ user, onClose, onLogout }) {
 
           {user?.phone && (
             <div style={{
-              padding: '16px',
+              padding: '12px',
               background: 'var(--bg)',
               border: '1px solid var(--line)'
             }}>
@@ -218,7 +223,7 @@ function ProfileModal({ user, onClose, onLogout }) {
 
           {user?.birthDate && (
             <div style={{
-              padding: '16px',
+              padding: '12px',
               background: 'var(--bg)',
               border: '1px solid var(--line)'
             }}>
@@ -244,7 +249,7 @@ function ProfileModal({ user, onClose, onLogout }) {
 
           {user?.hireDate && (
             <div style={{
-              padding: '16px',
+              padding: '12px',
               background: 'var(--bg)',
               border: '1px solid var(--line)'
             }}>
@@ -276,7 +281,7 @@ function ProfileModal({ user, onClose, onLogout }) {
             background: 'var(--ink)',
             color: 'var(--bg)',
             border: 'none',
-            padding: '14px 24px',
+            padding: '12px 20px',
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '11px',
             letterSpacing: '.08em',

@@ -29,6 +29,7 @@ function App() {
   const [chats, setChats] = useState([])
   const [activeChat, setActiveChat] = useState(null)
   const [showProfile, setShowProfile] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -254,6 +255,32 @@ function App() {
 
       {/* Main layout */}
       <div style={{ display: 'flex', height: 'calc(100vh - 61px)', position: 'relative', zIndex: 2 }}>
+        {/* Mobile sidebar toggle button */}
+        <button
+          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'var(--moss)',
+            color: 'var(--paper)',
+            border: 'none',
+            cursor: 'pointer',
+            zIndex: 1001,
+            display: 'none',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}
+          className="mobile-sidebar-toggle"
+        >
+          {isMobileSidebarOpen ? '×' : '☰'}
+        </button>
+
         {/* Sidebar */}
         <aside style={{
           width: '320px',
@@ -263,7 +290,7 @@ function App() {
           overflowY: 'auto',
           overflowX: 'hidden',
           padding: '28px 24px'
-        }}>
+        }} className={`sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
           {/* Tabs */}
           <div style={{ marginBottom: '24px' }}>
             <button
