@@ -343,8 +343,8 @@ function App() {
               onClick={goToChat}
               style={{
                 width: '100%',
-                background: currentView === 'chat' && showChatsList ? 'var(--ink)' : 'transparent',
-                color: currentView === 'chat' && showChatsList ? 'var(--bg)' : 'var(--ink)',
+                background: currentView === 'chat' ? 'var(--ink)' : 'transparent',
+                color: currentView === 'chat' ? 'var(--bg)' : 'var(--ink)',
                 border: '1px solid var(--line)',
                 padding: '12px 16px',
                 fontFamily: "'JetBrains Mono', monospace",
@@ -366,8 +366,8 @@ function App() {
               onClick={openForum}
               style={{
                 width: '100%',
-                background: currentView === 'forum' || currentView === 'topic' ? 'var(--ink)' : 'transparent',
-                color: currentView === 'forum' || currentView === 'topic' ? 'var(--bg)' : 'var(--ink)',
+                background: currentView === 'forum' || currentView === 'topic' || currentView === 'article' ? 'var(--ink)' : 'transparent',
+                color: currentView === 'forum' || currentView === 'topic' || currentView === 'article' ? 'var(--bg)' : 'var(--ink)',
                 border: '1px solid var(--line)',
                 padding: '12px 16px',
                 fontFamily: "'JetBrains Mono', monospace",
@@ -387,7 +387,7 @@ function App() {
           </div>
 
           {/* Chats list */}
-          {currentView === 'chat' && (
+          {(currentView === 'chat' || currentView === 'admin') && (
             <>
               <button
                 onClick={createNewChat}
