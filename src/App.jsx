@@ -213,7 +213,10 @@ function App() {
         <div className="topbar-actions">
           <button
             className="ghost-btn"
-            onClick={() => setShowChatsList(!showChatsList)}
+            onClick={() => {
+              setShowChatsList(!showChatsList);
+              setIsMobileSidebarOpen(!isMobileSidebarOpen);
+            }}
             title={showChatsList ? "Скрыть чаты" : "Показать чаты"}
             style={{
               background: showChatsList ? 'var(--moss)' : 'transparent',
