@@ -355,19 +355,34 @@ function AdminPanel({ currentUser, onBack }) {
                   <option value="other">Другое</option>
                 </select>
 
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.txt"
-                  onChange={(e) => setUploadFile(e.target.files[0])}
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--ink)',
-                    padding: '10px 12px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px'
-                  }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={(e) => setUploadFile(e.target.files[0])}
+                    id="file-upload"
+                    style={{ display: 'none' }}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    style={{
+                      display: 'block',
+                      background: 'var(--bg)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--ink)',
+                      padding: '10px 12px',
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: '.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.borderColor = 'var(--moss)'}
+                    onMouseLeave={(e) => e.target.style.borderColor = 'var(--line)'}
+                  >
+                    {uploadFile ? uploadFile.name : 'Выбрать файл (PDF, DOCX, TXT)'}
+                  </label>
+                </div>
 
                 <button
                   type="submit"
