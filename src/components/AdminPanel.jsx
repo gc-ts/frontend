@@ -40,19 +40,24 @@ function AdminPanel({ currentUser, onBack }) {
 
   const loadDocuments = async () => {
     try {
-      const docs = await documentsAPI.getDocuments();
+      const response = await documentsAPI.getDocuments();
+      // API может вернуть объект с полем documents или массив напрямую
+      const docs = Array.isArray(response) ? response : (response.documents || []);
       setDocuments(docs);
     } catch (error) {
       console.error('Failed to load documents:', error);
+      setDocuments([]);
     }
   };
 
   const loadCategories = async () => {
     try {
-      const cats = await documentsAPI.getCategories();
+      const response = await documentsAPI.getCategories();
+      const cats = Array.isArray(response) ? response : (response.categories || []);
       setCategories(cats);
     } catch (error) {
       console.error('Failed to load categories:', error);
+      setCategories([]);
     }
   };
 
@@ -124,10 +129,12 @@ function AdminPanel({ currentUser, onBack }) {
     if (!searchQuery.trim()) return;
 
     try {
-      const results = await employeeAPI.searchByName(searchQuery);
+      const response = await employeeAPI.searchByName(searchQuery);
+      const results = Array.isArray(response) ? response : (response.employees || []);
       setSearchResults(results);
     } catch (error) {
       console.error('Search failed:', error);
+      setSearchResults([]);
     }
   };
 
