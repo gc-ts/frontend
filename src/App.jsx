@@ -344,7 +344,7 @@ function App() {
           </div>
 
           {/* Chats list */}
-          {showChatsList && currentView === 'chat' && (
+          {currentView === 'chat' && (
             <>
               <button
                 onClick={createNewChat}
