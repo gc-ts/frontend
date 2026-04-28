@@ -4,6 +4,25 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
  * API Service для взаимодействия с backend
  */
 
+// Получение токена из localStorage
+const getAuthToken = () => {
+  return localStorage.getItem('token');
+};
+
+// Создание заголовков с авторизацией
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+};
+
 // Auth API
 export const authAPI = {
   register: async (employeeId, email, password, fullName) => {
@@ -16,7 +35,8 @@ export const authAPI = {
     });
 
     if (!response.ok) {
-      throw new Error('Registration failed');
+      const error = await response.json();
+      throw new Error(error.message || 'Registration failed');
     }
 
     return response.json();
@@ -32,7 +52,8 @@ export const authAPI = {
     });
 
     if (!response.ok) {
-      throw new Error('Login failed');
+      const error = await response.json();
+      throw new Error(error.message || 'Login failed');
     }
 
     return response.json();
@@ -60,9 +81,7 @@ export const chatAPI = {
   sendMessage: async (message, employeeId = null) => {
     const response = await fetch(`${API_URL}/chat/message`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ message, employeeId })
     });
 
@@ -76,9 +95,7 @@ export const chatAPI = {
   sendMessageStream: async (message, employeeId = null, onChunk) => {
     const response = await fetch(`${API_URL}/chat/stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ message, employeeId })
     });
 
@@ -114,7 +131,9 @@ export const chatAPI = {
   },
 
   getHistory: async (employeeId) => {
-    const response = await fetch(`${API_URL}/chat/history/${employeeId}`);
+    const response = await fetch(`${API_URL}/chat/history/${employeeId}`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get chat history');
@@ -127,7 +146,9 @@ export const chatAPI = {
 // Employee API
 export const employeeAPI = {
   getEmployee: async (employeeId) => {
-    const response = await fetch(`${API_URL}/employee/${employeeId}`);
+    const response = await fetch(`${API_URL}/employee/${employeeId}`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get employee data');
@@ -137,7 +158,9 @@ export const employeeAPI = {
   },
 
   getVacation: async (employeeId) => {
-    const response = await fetch(`${API_URL}/employee/${employeeId}/vacation`);
+    const response = await fetch(`${API_URL}/employee/${employeeId}/vacation`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get vacation data');
@@ -149,9 +172,7 @@ export const employeeAPI = {
   auth: async (employeeId, email) => {
     const response = await fetch(`${API_URL}/employee/auth`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ employeeId, email })
     });
 
@@ -163,7 +184,9 @@ export const employeeAPI = {
   },
 
   getBirthday: async (employeeId) => {
-    const response = await fetch(`${API_URL}/employee/${employeeId}/birthday`);
+    const response = await fetch(`${API_URL}/employee/${employeeId}/birthday`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get birthday data');
@@ -173,7 +196,9 @@ export const employeeAPI = {
   },
 
   searchByName: async (name) => {
-    const response = await fetch(`${API_URL}/employee/search/by-name?name=${encodeURIComponent(name)}`);
+    const response = await fetch(`${API_URL}/employee/search/by-name?name=${encodeURIComponent(name)}`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to search employee');
@@ -196,7 +221,9 @@ export const documentsAPI = {
       url += `?${params.toString()}`;
     }
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get documents');
@@ -206,7 +233,9 @@ export const documentsAPI = {
   },
 
   getDocument: async (documentId) => {
-    const response = await fetch(`${API_URL}/documents/${documentId}`);
+    const response = await fetch(`${API_URL}/documents/${documentId}`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get document');
@@ -216,14 +245,21 @@ export const documentsAPI = {
   },
 
   uploadDocument: async (file, title, category, type) => {
+    const token = getAuthToken();
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('category', category);
     formData.append('type', type);
 
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/documents/upload`, {
       method: 'POST',
+      headers: headers,
       body: formData
     });
 
@@ -236,7 +272,8 @@ export const documentsAPI = {
 
   deleteDocument: async (documentId) => {
     const response = await fetch(`${API_URL}/documents/${documentId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -247,7 +284,9 @@ export const documentsAPI = {
   },
 
   getCategories: async () => {
-    const response = await fetch(`${API_URL}/documents/meta/categories`);
+    const response = await fetch(`${API_URL}/documents/meta/categories`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get categories');
@@ -260,7 +299,9 @@ export const documentsAPI = {
 // Knowledge Base API
 export const knowledgeAPI = {
   getAll: async () => {
-    const response = await fetch(`${API_URL}/knowledge`);
+    const response = await fetch(`${API_URL}/knowledge`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get knowledge base');
@@ -272,9 +313,7 @@ export const knowledgeAPI = {
   search: async (query) => {
     const response = await fetch(`${API_URL}/knowledge/search`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ query })
     });
 
@@ -288,9 +327,7 @@ export const knowledgeAPI = {
   reindex: async () => {
     const response = await fetch(`${API_URL}/knowledge/reindex`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -301,7 +338,9 @@ export const knowledgeAPI = {
   },
 
   getIndexStatus: async () => {
-    const response = await fetch(`${API_URL}/knowledge/index`);
+    const response = await fetch(`${API_URL}/knowledge/index`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Failed to get index status');
