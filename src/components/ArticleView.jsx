@@ -8,6 +8,7 @@ function ArticleView({ article, onBack, currentUser }) {
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isAILoading, setIsAILoading] = useState(false);
+  const [showAIInput, setShowAIInput] = useState(false);
   const [showBottomAI, setShowBottomAI] = useState(false);
   const [bottomQuestion, setBottomQuestion] = useState('');
   const [bottomResponse, setBottomResponse] = useState('');
@@ -28,8 +29,12 @@ function ArticleView({ article, onBack, currentUser }) {
           y: rect.top - 10
         });
         setShowAIPopup(true);
+        setShowAIInput(false);
+        setAiQuestion('');
+        setAiResponse('');
       } else {
         setShowAIPopup(false);
+        setShowAIInput(false);
         setSelectedText('');
       }
     };
@@ -276,34 +281,29 @@ function ArticleView({ article, onBack, currentUser }) {
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
           }}
         >
-          <button
-            onClick={() => {
-              setAiQuestion('');
-              setAiResponse('');
-              document.getElementById('ai-question-input')?.focus();
-            }}
-            style={{
-              background: 'var(--moss)',
-              color: 'var(--paper)',
-              border: 'none',
-              padding: '6px 12px',
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '10px',
-              letterSpacing: '.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <span>🤖</span> Спросить HR AI
-          </button>
-
-          {(aiQuestion !== '' || aiResponse) && (
+          {!showAIInput ? (
+            <button
+              onClick={() => setShowAIInput(true)}
+              style={{
+                background: 'var(--moss)',
+                color: 'var(--paper)',
+                border: 'none',
+                padding: '6px 12px',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '10px',
+                letterSpacing: '.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span>🤖</span> Спросить HR AI
+            </button>
+          ) : (
             <div style={{
-              marginTop: '12px',
               minWidth: '300px',
               maxWidth: '400px'
             }}>
@@ -324,6 +324,7 @@ function ArticleView({ article, onBack, currentUser }) {
                 onKeyPress={(e) => e.key === 'Enter' && handleAskAI()}
                 placeholder="Ваш вопрос..."
                 disabled={isAILoading}
+                autoFocus
                 style={{
                   width: '100%',
                   background: 'var(--bg)',
