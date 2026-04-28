@@ -4,16 +4,11 @@ import Auth from './Auth.jsx'
 import ChatMain from './components/ChatMain.jsx'
 import TopicView from './components/TopicView.jsx'
 import ProfileModal from './components/ProfileModal.jsx'
+import ForumList from './components/ForumList.jsx'
+import ArticleView from './components/ArticleView.jsx'
+import { forumArticles, forumCategories } from './data/forumArticles.js'
 
 // Моковые категории и темы для бокового меню
-const FORUM_CATEGORIES = [
-  { id: 1, name: 'Адаптация', icon: '🌱', count: 45 },
-  { id: 2, name: 'Общение', icon: '💬', count: 128 },
-  { id: 3, name: 'Вопросы HR', icon: '📋', count: 67 },
-  { id: 4, name: 'Обучение', icon: '📚', count: 89 },
-  { id: 5, name: 'Офис', icon: '🏢', count: 34 }
-];
-
 const RECENT_TOPICS = [
   { id: 1, title: 'Как проходит первый день?', replies: 12, category: 'Адаптация' },
   { id: 2, title: 'Где обедать рядом с офисом?', replies: 23, category: 'Офис' },
@@ -27,8 +22,9 @@ function App() {
   const [authToken, setAuthToken] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
   const [theme, setTheme] = useState('light')
-  const [currentView, setCurrentView] = useState('chat') // 'chat', 'forum', 'topic'
+  const [currentView, setCurrentView] = useState('chat') // 'chat', 'forum', 'topic', 'article'
   const [selectedTopic, setSelectedTopic] = useState(null)
+  const [selectedArticle, setSelectedArticle] = useState(null)
   const [showChatsList, setShowChatsList] = useState(true) // Показывать список чатов
   const [chats, setChats] = useState([])
   const [activeChat, setActiveChat] = useState(null)
@@ -172,6 +168,12 @@ function App() {
   const openTopic = (topic) => {
     setSelectedTopic(topic);
     setCurrentView('topic');
+    setShowChatsList(false);
+  };
+
+  const openArticle = (article) => {
+    setSelectedArticle(article);
+    setCurrentView('article');
     setShowChatsList(false);
   };
 
@@ -384,11 +386,11 @@ function App() {
           )}
 
           {/* Forum categories */}
-          {(currentView === 'forum' || currentView === 'topic') && (
+          {(currentView === 'forum' || currentView === 'topic' || currentView === 'article') && (
             <>
               <div style={{ marginBottom: '24px' }}>
                 <span className="kicker" style={{ display: 'block', marginBottom: '12px' }}>Категории</span>
-                {FORUM_CATEGORIES.map(cat => (
+                {forumCategories.map(cat => (
                   <div
                     key={cat.id}
                     onClick={openForum}
@@ -417,7 +419,7 @@ function App() {
                         {cat.name}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--ink-3)', fontFamily: "'JetBrains Mono', monospace" }}>
-                        {cat.count} тем
+                        {forumArticles.filter(a => a.category === cat.name).length} статей
                       </div>
                     </div>
                   </div>
@@ -425,11 +427,11 @@ function App() {
               </div>
 
               <div>
-                <span className="kicker" style={{ display: 'block', marginBottom: '12px' }}>Последние темы</span>
-                {RECENT_TOPICS.map(topic => (
+                <span className="kicker" style={{ display: 'block', marginBottom: '12px' }}>Популярные статьи</span>
+                {forumArticles.slice(0, 5).map(article => (
                   <div
-                    key={topic.id}
-                    onClick={() => openTopic(topic)}
+                    key={article.id}
+                    onClick={() => openArticle(article)}
                     style={{
                       padding: '10px 12px',
                       cursor: 'pointer',
@@ -447,10 +449,10 @@ function App() {
                     }}
                   >
                     <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--ink)', marginBottom: '4px' }}>
-                      {topic.title}
+                      {article.icon} {article.title}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--ink-3)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {topic.category} · 💬 {topic.replies}
+                      {article.category}
                     </div>
                   </div>
                 ))}
@@ -469,21 +471,14 @@ function App() {
             />
           )}
           {currentView === 'forum' && (
-            <div style={{ padding: '48px', overflowY: 'auto', height: '100%' }}>
-              <h1 style={{
-                fontFamily: "'Fraunces', serif",
-                fontSize: '42px',
-                fontWeight: '300',
-                letterSpacing: '-0.025em',
-                color: 'var(--ink)',
-                margin: '0 0 32px'
-              }}>
-                Форум<span style={{ color: 'var(--pistachio)' }}>.</span>
-              </h1>
-              <p style={{ fontSize: '15px', color: 'var(--ink-2)', marginBottom: '32px' }}>
-                Здесь будет полный список тем форума. Пока используйте боковое меню для навигации.
-              </p>
-            </div>
+            <ForumList onArticleSelect={openArticle} />
+          )}
+          {currentView === 'article' && selectedArticle && (
+            <ArticleView
+              article={selectedArticle}
+              currentUser={currentUser}
+              onBack={openForum}
+            />
           )}
           {currentView === 'topic' && selectedTopic && (
             <TopicView
