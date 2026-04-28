@@ -3,6 +3,7 @@ import './styles/forum.css'
 import Auth from './Auth.jsx'
 import ChatMain from './components/ChatMain.jsx'
 import TopicView from './components/TopicView.jsx'
+import ProfileModal from './components/ProfileModal.jsx'
 
 // Моковые категории и темы для бокового меню
 const FORUM_CATEGORIES = [
@@ -31,6 +32,7 @@ function App() {
   const [showChatsList, setShowChatsList] = useState(true) // Показывать список чатов
   const [chats, setChats] = useState([])
   const [activeChat, setActiveChat] = useState(null)
+  const [showProfile, setShowProfile] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -146,6 +148,7 @@ function App() {
     setCurrentView('chat');
     setChats([]);
     setActiveChat(null);
+    setShowProfile(false);
   };
 
   const toggleTheme = () => {
@@ -226,7 +229,7 @@ function App() {
             )}
           </button>
 
-          <button className="user-menu-btn" onClick={handleLogout} title="Профиль">
+          <button className="user-menu-btn" onClick={() => setShowProfile(true)} title="Профиль">
             <div className="avatar">
               {currentUser?.fullName ? currentUser.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'U'}
             </div>
@@ -485,6 +488,14 @@ function App() {
           )}
         </main>
       </div>
+
+      {showProfile && (
+        <ProfileModal
+          user={currentUser}
+          onClose={() => setShowProfile(false)}
+          onLogout={handleLogout}
+        />
+      )}
     </div>
   )
 }
