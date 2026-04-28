@@ -32,7 +32,8 @@ function ArticleView({ article, onBack, currentUser }) {
         setShowAIInput(false);
         setAiQuestion('');
         setAiResponse('');
-      } else {
+      } else if (!showAIInput) {
+        // Только закрываем если не открыт инпут
         setShowAIPopup(false);
         setShowAIInput(false);
         setSelectedText('');
@@ -41,7 +42,7 @@ function ArticleView({ article, onBack, currentUser }) {
 
     document.addEventListener('mouseup', handleSelection);
     return () => document.removeEventListener('mouseup', handleSelection);
-  }, []);
+  }, [showAIInput]);
 
   const handleAskAI = async () => {
     if (!aiQuestion.trim()) return;
@@ -269,6 +270,8 @@ function ArticleView({ article, onBack, currentUser }) {
       {/* Selection AI Popup */}
       {showAIPopup && (
         <div
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
             left: `${popupPosition.x}px`,
@@ -278,7 +281,9 @@ function ArticleView({ article, onBack, currentUser }) {
             border: '1px solid var(--moss)',
             padding: '8px 12px',
             zIndex: 10000,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            maxHeight: '400px',
+            overflowY: 'auto'
           }}
         >
           {!showAIInput ? (
@@ -308,12 +313,38 @@ function ArticleView({ article, onBack, currentUser }) {
               maxWidth: '400px'
             }}>
               <div style={{
-                fontSize: '11px',
-                color: 'var(--ink-3)',
-                marginBottom: '8px',
-                fontFamily: "'JetBrains Mono', monospace"
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px'
               }}>
-                Выделено: "{selectedText.slice(0, 50)}{selectedText.length > 50 ? '...' : ''}"
+                <div style={{
+                  fontSize: '11px',
+                  color: 'var(--ink-3)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  flex: 1
+                }}>
+                  Выделено: "{selectedText.slice(0, 30)}{selectedText.length > 30 ? '...' : ''}"
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAIPopup(false);
+                    setShowAIInput(false);
+                    setAiQuestion('');
+                    setAiResponse('');
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--ink-2)',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    padding: '0 4px',
+                    lineHeight: '1'
+                  }}
+                >
+                  ×
+                </button>
               </div>
 
               <input
@@ -367,7 +398,7 @@ function ArticleView({ article, onBack, currentUser }) {
                   fontSize: '13px',
                   lineHeight: '1.5',
                   color: 'var(--ink)',
-                  maxHeight: '200px',
+                  maxHeight: '250px',
                   overflowY: 'auto',
                   whiteSpace: 'pre-wrap'
                 }}>
