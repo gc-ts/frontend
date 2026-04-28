@@ -75,40 +75,47 @@ function ChatMain({ currentUser, activeChat, onChatChange }) {
       const botMessageId = Date.now() + 1;
       let fullText = '';
       let source = '';
-
-      const botMessage = {
-        id: botMessageId,
-        text: '',
-        sender: 'bot',
-        timestamp: new Date(),
-        source: ''
-      };
-
-      const messagesWithBot = [...updatedMessages, botMessage];
-      setMessages(messagesWithBot);
+      let botMessageAdded = false;
 
       await chatAPI.sendMessageStream(messageText, currentUser?.employeeId, (data) => {
         if (data.type === 'context' && data.source) {
           source = data.source;
         } else if (data.type === 'token' && data.delta) {
           fullText += data.delta;
-          setMessages(prev => prev.map(msg =>
-            msg.id === botMessageId
-              ? { ...msg, text: fullText, source: source }
-              : msg
-          ));
+
+          // Добавляем сообщение бота только при первом токене
+          if (!botMessageAdded) {
+            const botMessage = {
+              id: botMessageId,
+              text: fullText,
+              sender: 'bot',
+              timestamp: new Date(),
+              source: source
+            };
+            setMessages(prev => [...prev, botMessage]);
+            botMessageAdded = true;
+          } else {
+            // Обновляем существующее сообщение
+            setMessages(prev => prev.map(msg =>
+              msg.id === botMessageId
+                ? { ...msg, text: fullText, source: source }
+                : msg
+            ));
+          }
         } else if (data.type === 'done') {
-          const finalMessages = messagesWithBot.map(msg =>
-            msg.id === botMessageId
-              ? { ...msg, text: fullText, source: source }
-              : msg
-          );
-          setMessages(finalMessages);
-          saveChat(finalMessages);
+          setIsTyping(false);
+          // Сохраняем финальное состояние
+          setMessages(prev => {
+            const finalMessages = prev.map(msg =>
+              msg.id === botMessageId
+                ? { ...msg, text: fullText, source: source }
+                : msg
+            );
+            saveChat(finalMessages);
+            return finalMessages;
+          });
         }
       });
-
-      setIsTyping(false);
 
     } catch (error) {
       console.error('Failed to send message:', error);
