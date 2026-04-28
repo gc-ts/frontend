@@ -83,8 +83,9 @@ function ChatMain({ currentUser, activeChat, onChatChange }) {
         } else if (data.type === 'token' && data.delta) {
           fullText += data.delta;
 
-          // Добавляем сообщение бота только при первом токене
+          // Убираем индикатор загрузки при первом токене
           if (!botMessageAdded) {
+            setIsTyping(false);
             const botMessage = {
               id: botMessageId,
               text: fullText,
@@ -103,7 +104,6 @@ function ChatMain({ currentUser, activeChat, onChatChange }) {
             ));
           }
         } else if (data.type === 'done') {
-          setIsTyping(false);
           // Сохраняем финальное состояние
           setMessages(prev => {
             const finalMessages = prev.map(msg =>
