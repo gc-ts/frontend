@@ -166,7 +166,9 @@ function ArticleView({ article, onBack, currentUser }) {
           textTransform: 'uppercase',
           color: 'var(--ink-3)',
           fontFamily: "'JetBrains Mono', monospace",
-          flexShrink: 0
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center'
         }}>
           {article.category}
         </div>
