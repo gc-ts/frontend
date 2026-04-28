@@ -39,38 +39,42 @@ function ChatMain({ currentUser }) {
     setIsTyping(true);
 
     try {
-      const response = await chatAPI.sendMessage(messageText, currentUser?.employeeId);
-      setIsTyping(false);
-
-      const fullText = response.response;
-      let currentText = '';
       const botMessageId = Date.now() + 1;
+      let fullText = '';
+      let source = '';
 
       const botMessage = {
         id: botMessageId,
         text: '',
         sender: 'bot',
         timestamp: new Date(),
-        source: response.source,
+        source: '',
         isTyping: true
       };
 
       setMessages(prev => [...prev, botMessage]);
 
-      const typingSpeed = 20;
-      for (let i = 0; i <= fullText.length; i++) {
-        currentText = fullText.slice(0, i);
-
-        setMessages(prev => prev.map(msg =>
-          msg.id === botMessageId
-            ? { ...msg, text: currentText, isTyping: i < fullText.length }
-            : msg
-        ));
-
-        if (i < fullText.length) {
-          await new Promise(resolve => setTimeout(resolve, typingSpeed));
+      // Используем стриминг API
+      await chatAPI.sendMessageStream(messageText, currentUser?.employeeId, (data) => {
+        if (data.type === 'context' && data.source) {
+          source = data.source;
+        } else if (data.type === 'token' && data.delta) {
+          fullText += data.delta;
+          setMessages(prev => prev.map(msg =>
+            msg.id === botMessageId
+              ? { ...msg, text: fullText, source: source, isTyping: true }
+              : msg
+          ));
+        } else if (data.type === 'done') {
+          setMessages(prev => prev.map(msg =>
+            msg.id === botMessageId
+              ? { ...msg, isTyping: false }
+              : msg
+          ));
         }
-      }
+      });
+
+      setIsTyping(false);
 
     } catch (error) {
       console.error('Failed to send message:', error);
