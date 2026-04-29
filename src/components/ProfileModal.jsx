@@ -1,299 +1,206 @@
-function ProfileModal({ user, onClose, onLogout }) {
+import { useState } from 'react';
+import { employeeAPI } from '../services/api';
+
+const editableFields = [
+  { name: 'fullName', label: 'ФИО', type: 'text', required: true, section: 'Основное' },
+  { name: 'middleName', label: 'Отчество', type: 'text', section: 'Основное' },
+  { name: 'email', label: 'Email', type: 'email', required: true, section: 'Контакты' },
+  { name: 'additionalEmail', label: 'Дополнительный email', type: 'email', section: 'Контакты' },
+  { name: 'phone', label: 'Телефон', type: 'tel', section: 'Контакты' },
+  { name: 'telegram', label: 'Telegram', type: 'text', section: 'Контакты' },
+  { name: 'city', label: 'Город', type: 'text', section: 'Контакты' },
+  { name: 'position', label: 'Должность', type: 'text', section: 'Работа' },
+  { name: 'department', label: 'Отдел', type: 'text', section: 'Работа' },
+  { name: 'hireDate', label: 'Дата приема', type: 'date', section: 'Работа' },
+  { name: 'oneCCode', label: 'Код 1С', type: 'text', section: 'Работа' },
+  { name: 'vacationDays', label: 'Дней отпуска', type: 'number', min: 0, section: 'Работа' },
+  { name: 'salary', label: 'Оклад', type: 'number', min: 0, section: 'Финансы' },
+  { name: 'bonusBalance', label: 'Бонусный баланс', type: 'number', min: 0, section: 'Финансы' },
+  { name: 'birthDate', label: 'Дата рождения', type: 'date', section: 'Дополнительно' },
+  { name: 'medicalExamDate', label: 'Медосмотр', type: 'date', section: 'Дополнительно' },
+  { name: 'sanitaryMinimumDate', label: 'Санминимум', type: 'date', section: 'Дополнительно' }
+];
+
+const readonlyFields = [
+  { name: 'employeeId', label: 'Табельный номер' },
+  { name: 'role', label: 'Роль' }
+];
+
+const dateFields = new Set(['birthDate', 'hireDate', 'medicalExamDate', 'sanitaryMinimumDate']);
+const numberFields = new Set(['vacationDays', 'salary', 'bonusBalance']);
+
+const initialForm = (user) => {
+  const data = {};
+
+  editableFields.forEach(({ name }) => {
+    const value = user?.[name];
+    data[name] = dateFields.has(name) && value ? String(value).slice(0, 10) : value ?? '';
+  });
+
+  return data;
+};
+
+const initials = (name) => {
+  if (!name) return 'U';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+};
+
+const formatValue = (name, value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  if (dateFields.has(name)) return new Date(value).toLocaleDateString('ru-RU');
+  if (name === 'salary') return Number(value).toLocaleString('ru-RU');
+  return value;
+};
+
+const buildPayload = (formData) => {
+  const payload = {};
+
+  editableFields.forEach(({ name }) => {
+    const value = formData[name];
+
+    if (numberFields.has(name)) {
+      payload[name] = value === '' ? null : Number(value);
+      return;
+    }
+
+    payload[name] = value === '' ? null : value;
+  });
+
+  return payload;
+};
+
+function ProfileModal({ user, onClose, onLogout, onUserUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState(() => initialForm(user));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
+    setError('');
+  };
+
+  const handleEdit = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setError('');
+    setFormData(initialForm(user));
+    setIsEditing(true);
+  };
+
+  const handleCancel = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setFormData(initialForm(user));
+    setError('');
+    setIsEditing(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+
+    try {
+      const result = await employeeAPI.updateEmployee(user.employeeId, buildPayload(formData));
+      const updatedEmployee = result.employee || result;
+      onUserUpdate(updatedEmployee);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.message || 'Не удалось сохранить профиль');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sections = editableFields.reduce((acc, field) => {
+    acc[field.section] = acc[field.section] || [];
+    acc[field.section].push(field);
+    return acc;
+  }, {});
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '16px'
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: 'var(--paper)',
-          border: '1px solid var(--line)',
-          width: '100%',
-          maxWidth: '480px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          padding: '24px',
-          position: 'relative'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--ink-2)',
-            cursor: 'pointer',
-            fontSize: '20px',
-            padding: '4px 8px',
-            transition: '.2s'
-          }}
-          onMouseEnter={(e) => e.target.style.color = 'var(--ink)'}
-          onMouseLeave={(e) => e.target.style.color = 'var(--ink-2)'}
-        >
-          ×
-        </button>
+    <div className="profile-modal-overlay" onClick={onClose}>
+      <div className="profile-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="profile-modal-header">
+          <button className="profile-close-btn" onClick={onClose} type="button" aria-label="Закрыть">
+            ×
+          </button>
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '999px',
-            background: 'var(--sage)',
-            color: 'var(--paper)',
-            display: 'grid',
-            placeItems: 'center',
-            fontFamily: "'Fraunces', serif",
-            fontWeight: '500',
-            fontSize: '24px',
-            marginBottom: '12px'
-          }}>
-            {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'U'}
-          </div>
-
-          <h2 style={{
-            fontFamily: "'Fraunces', serif",
-            fontSize: '20px',
-            fontWeight: '400',
-            color: 'var(--ink)',
-            margin: '0 0 4px',
-            textAlign: 'center'
-          }}>
-            {user?.fullName || 'Пользователь'}
-          </h2>
-
-          <div style={{
-            fontSize: '11px',
-            color: 'var(--ink-3)',
-            fontFamily: "'JetBrains Mono', monospace",
-            letterSpacing: '.05em'
-          }}>
-            ID: {user?.employeeId}
+          <div className="profile-avatar-large">{initials(isEditing ? formData.fullName : user?.fullName)}</div>
+          <div className="profile-heading">
+            <h2>{isEditing ? formData.fullName || 'Пользователь' : user?.fullName || 'Пользователь'}</h2>
+            <span>ID: {user?.employeeId || '—'}</span>
           </div>
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          marginBottom: '24px'
-        }}>
-          <div style={{
-            padding: '12px',
-            background: 'var(--bg)',
-            border: '1px solid var(--line)'
-          }}>
-            <div style={{
-              fontSize: '10px',
-              letterSpacing: '.14em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-3)',
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: '6px'
-            }}>
-              Табельный номер
-            </div>
-            <div style={{
-              fontSize: '14px',
-              color: 'var(--ink)',
-              fontFamily: "'Inter', sans-serif"
-            }}>
-              {user?.employeeId || '—'}
-            </div>
+        {error && <div className="profile-alert">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="profile-form">
+          <div className="profile-readonly-grid">
+            {readonlyFields.map((field) => (
+              <div className="profile-readonly-item" key={field.name}>
+                <span>{field.label}</span>
+                <strong>{formatValue(field.name, user?.[field.name])}</strong>
+              </div>
+            ))}
           </div>
 
-          <div style={{
-            padding: '12px',
-            background: 'var(--bg)',
-            border: '1px solid var(--line)'
-          }}>
-            <div style={{
-              fontSize: '10px',
-              letterSpacing: '.14em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-3)',
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: '6px'
-            }}>
-              Email
-            </div>
-            <div style={{
-              fontSize: '14px',
-              color: 'var(--ink)',
-              fontFamily: "'Inter', sans-serif",
-              wordBreak: 'break-word'
-            }}>
-              {user?.email || '—'}
-            </div>
+          {Object.entries(sections).map(([sectionName, fields]) => (
+            <section className="profile-edit-section" key={sectionName}>
+              <h3>{sectionName}</h3>
+              <div className="profile-fields-grid">
+                {fields.map((field) => (
+                  <label className="profile-input-group" key={field.name}>
+                    <span>{field.label}</span>
+                    {isEditing ? (
+                      <input
+                        type={field.type}
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleChange}
+                        required={field.required}
+                        min={field.min}
+                        disabled={saving}
+                      />
+                    ) : (
+                      <strong>{formatValue(field.name, user?.[field.name])}</strong>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          <div className="profile-actions">
+            {isEditing ? (
+              <>
+                <button className="profile-secondary-btn" type="button" onClick={handleCancel} disabled={saving}>
+                  Отменить
+                </button>
+                <button className="profile-primary-btn" type="submit" disabled={saving}>
+                  {saving ? 'Сохранение...' : 'Сохранить'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="profile-secondary-btn" type="button" onClick={onLogout}>
+                  Выйти
+                </button>
+                <button className="profile-primary-btn" type="button" onClick={handleEdit}>
+                  Редактировать
+                </button>
+              </>
+            )}
           </div>
-
-          <div style={{
-            padding: '12px',
-            background: 'var(--bg)',
-            border: '1px solid var(--line)'
-          }}>
-            <div style={{
-              fontSize: '10px',
-              letterSpacing: '.14em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-3)',
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: '6px'
-            }}>
-              Должность
-            </div>
-            <div style={{
-              fontSize: '14px',
-              color: 'var(--ink)',
-              fontFamily: "'Inter', sans-serif"
-            }}>
-              {user?.position || '—'}
-            </div>
-          </div>
-
-          <div style={{
-            padding: '12px',
-            background: 'var(--bg)',
-            border: '1px solid var(--line)'
-          }}>
-            <div style={{
-              fontSize: '10px',
-              letterSpacing: '.14em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-3)',
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: '6px'
-            }}>
-              Отдел
-            </div>
-            <div style={{
-              fontSize: '14px',
-              color: 'var(--ink)',
-              fontFamily: "'Inter', sans-serif"
-            }}>
-              {user?.department || '—'}
-            </div>
-          </div>
-
-          {user?.phone && (
-            <div style={{
-              padding: '12px',
-              background: 'var(--bg)',
-              border: '1px solid var(--line)'
-            }}>
-              <div style={{
-                fontSize: '10px',
-                letterSpacing: '.14em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-3)',
-                fontFamily: "'JetBrains Mono', monospace",
-                marginBottom: '6px'
-              }}>
-                Телефон
-              </div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--ink)',
-                fontFamily: "'Inter', sans-serif"
-              }}>
-                {user.phone}
-              </div>
-            </div>
-          )}
-
-          {user?.birthDate && (
-            <div style={{
-              padding: '12px',
-              background: 'var(--bg)',
-              border: '1px solid var(--line)'
-            }}>
-              <div style={{
-                fontSize: '10px',
-                letterSpacing: '.14em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-3)',
-                fontFamily: "'JetBrains Mono', monospace",
-                marginBottom: '6px'
-              }}>
-                Дата рождения
-              </div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--ink)',
-                fontFamily: "'Inter', sans-serif"
-              }}>
-                {new Date(user.birthDate).toLocaleDateString('ru-RU')}
-              </div>
-            </div>
-          )}
-
-          {user?.hireDate && (
-            <div style={{
-              padding: '12px',
-              background: 'var(--bg)',
-              border: '1px solid var(--line)'
-            }}>
-              <div style={{
-                fontSize: '10px',
-                letterSpacing: '.14em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-3)',
-                fontFamily: "'JetBrains Mono', monospace",
-                marginBottom: '6px'
-              }}>
-                Дата приема на работу
-              </div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--ink)',
-                fontFamily: "'Inter', sans-serif"
-              }}>
-                {new Date(user.hireDate).toLocaleDateString('ru-RU')}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={onLogout}
-          style={{
-            width: '100%',
-            background: 'var(--ink)',
-            color: 'var(--bg)',
-            border: 'none',
-            padding: '12px 20px',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
-            letterSpacing: '.08em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            transition: '.2s'
-          }}
-          onMouseEnter={(e) => e.target.style.background = 'var(--moss)'}
-          onMouseLeave={(e) => e.target.style.background = 'var(--ink)'}
-        >
-          Выйти
-        </button>
+        </form>
       </div>
     </div>
   );

@@ -1,619 +1,605 @@
-import { useState, useEffect } from 'react';
-import { documentsAPI, knowledgeAPI, employeeAPI, chatAPI } from '../services/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { documentsAPI, employeeAPI, knowledgeAPI } from '../services/api';
 
-function AdminPanel({ currentUser, onBack }) {
-  const [activeTab, setActiveTab] = useState('documents');
+const employeeFields = [
+  { name: 'employeeId', label: 'Табельный номер', required: true },
+  { name: 'fullName', label: 'ФИО', required: true },
+  { name: 'email', label: 'Email', type: 'email', required: true },
+  { name: 'password', label: 'Пароль', type: 'password', createOnly: true },
+  { name: 'position', label: 'Должность' },
+  { name: 'department', label: 'Отдел' },
+  { name: 'phone', label: 'Телефон' },
+  { name: 'middleName', label: 'Отчество' },
+  { name: 'city', label: 'Город' },
+  { name: 'telegram', label: 'Telegram' },
+  { name: 'additionalEmail', label: 'Доп. email', type: 'email' },
+  { name: 'oneCCode', label: 'Код 1С' },
+  { name: 'birthDate', label: 'Дата рождения', type: 'date' },
+  { name: 'hireDate', label: 'Дата приема', type: 'date' },
+  { name: 'medicalExamDate', label: 'Медосмотр', type: 'date' },
+  { name: 'sanitaryMinimumDate', label: 'Санминимум', type: 'date' },
+  { name: 'vacationDays', label: 'Дней отпуска', type: 'number' },
+  { name: 'salary', label: 'Оклад', type: 'number' },
+  { name: 'bonusBalance', label: 'Бонусный баланс', type: 'number' }
+];
+
+const emptyEmployee = employeeFields.reduce((acc, field) => ({ ...acc, [field.name]: '' }), {
+  role: 'employee'
+});
+
+const emptyVacation = {
+  startDate: '',
+  endDate: '',
+  days: '',
+  status: 'planned'
+};
+
+const numberFields = new Set(['vacationDays', 'salary', 'bonusBalance']);
+const normalizeDate = (value) => (value ? String(value).slice(0, 10) : '');
+
+const toEmployeeForm = (employee = {}) => ({
+  ...emptyEmployee,
+  ...employee,
+  employeeId: employee.employeeId || employee.id || '',
+  role: employee.role || 'employee',
+  birthDate: normalizeDate(employee.birthDate),
+  hireDate: normalizeDate(employee.hireDate),
+  medicalExamDate: normalizeDate(employee.medicalExamDate),
+  sanitaryMinimumDate: normalizeDate(employee.sanitaryMinimumDate),
+  vacationDays: employee.vacationDays ?? '',
+  salary: employee.salary ?? '',
+  bonusBalance: employee.bonusBalance ?? '',
+  password: ''
+});
+
+const buildEmployeePayload = (form, mode) => {
+  const payload = {};
+
+  employeeFields.forEach((field) => {
+    if (field.createOnly && mode !== 'create') return;
+
+    const value = form[field.name];
+    if (value === '' && field.name === 'password') return;
+    if (numberFields.has(field.name)) {
+      payload[field.name] = value === '' ? null : Number(value);
+      return;
+    }
+    payload[field.name] = value === '' ? null : value;
+  });
+
+  payload.role = form.role || 'employee';
+  return payload;
+};
+
+function AdminPanel({ onBack }) {
+  const [activeTab, setActiveTab] = useState('employees');
   const [documents, setDocuments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [indexStatus, setIndexStatus] = useState(null);
+  const [corporateSync, setCorporateSync] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [employeeMode, setEmployeeMode] = useState('create');
+  const [employeeForm, setEmployeeForm] = useState(emptyEmployee);
+  const [vacationForm, setVacationForm] = useState(emptyVacation);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadCategory, setUploadCategory] = useState('');
   const [uploadType, setUploadType] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [isReindexing, setIsReindexing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
-  useEffect(() => {
-    loadInitialData();
+  const indexTotal = indexStatus?.stats?.total ?? 0;
+  const indexDocuments = indexStatus?.documents || [];
+
+  const categoryOptions = useMemo(() => {
+    const fromDocs = documents.map((doc) => doc.category).filter(Boolean);
+    return Array.from(new Set([...categories, ...fromDocs]));
+  }, [categories, documents]);
+
+  const loadDocuments = useCallback(async () => {
+    const response = await documentsAPI.getDocuments();
+    setDocuments(Array.isArray(response) ? response : response.documents || []);
   }, []);
 
-  const loadInitialData = async () => {
-    setIsLoading(true);
-    setError(null);
+  const loadCategories = useCallback(async () => {
+    const response = await documentsAPI.getCategories();
+    setCategories(Array.isArray(response) ? response : response.categories || []);
+  }, []);
+
+  const loadKnowledge = useCallback(async () => {
+    const [indexResponse, syncResponse] = await Promise.allSettled([
+      knowledgeAPI.getIndexStatus(),
+      knowledgeAPI.getCorporateSync()
+    ]);
+
+    if (indexResponse.status === 'fulfilled') setIndexStatus(indexResponse.value);
+    if (syncResponse.status === 'fulfilled') setCorporateSync(syncResponse.value);
+  }, []);
+
+  const loadEmployees = useCallback(async (search = '') => {
+    const response = await employeeAPI.adminList({ search, limit: 100, offset: 0 });
+    const list = Array.isArray(response) ? response : response.employees || [];
+    setEmployees(list);
+    return list;
+  }, []);
+
+  const loadInitialData = useCallback(async () => {
+    setBusy('initial');
+    setError('');
+
     try {
-      await Promise.all([
+      const results = await Promise.allSettled([
         loadDocuments(),
         loadCategories(),
-        loadIndexStatus()
+        loadKnowledge(),
+        loadEmployees('')
       ]);
-    } catch (err) {
-      console.error('Failed to load initial data:', err);
-      setError(err.message);
+      const employeesResult = results[3];
+
+      if (employeesResult.status === 'fulfilled' && employeesResult.value[0]) {
+        const firstEmployee = employeesResult.value[0];
+        setSelectedEmployeeId(firstEmployee.id);
+        setEmployeeMode('edit');
+        setEmployeeForm(toEmployeeForm(firstEmployee));
+      }
+
+      const failed = results.find((result) => result.status === 'rejected');
+      if (failed) setError(failed.reason?.message || 'Часть данных админки не загрузилась');
     } finally {
-      setIsLoading(false);
+      setBusy('');
     }
+  }, [loadCategories, loadDocuments, loadEmployees, loadKnowledge]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadInitialData, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadInitialData]);
+
+  const showNotice = (message) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice(''), 2500);
   };
 
-  const loadDocuments = async () => {
+  const handleEmployeeSelect = async (employeeId) => {
+    setBusy(`employee-${employeeId}`);
+    setError('');
+
     try {
-      const response = await documentsAPI.getDocuments();
-      // API может вернуть объект с полем documents или массив напрямую
-      const docs = Array.isArray(response) ? response : (response.documents || []);
-      setDocuments(docs);
-    } catch (error) {
-      console.error('Failed to load documents:', error);
-      setDocuments([]);
+      const response = await employeeAPI.adminGet(employeeId);
+      const employee = response.employee || response;
+      setSelectedEmployeeId(employee.id);
+      setEmployeeMode('edit');
+      setEmployeeForm(toEmployeeForm(employee));
+    } catch (err) {
+      setError(err.message || 'Не удалось загрузить сотрудника');
+    } finally {
+      setBusy('');
     }
   };
 
-  const loadCategories = async () => {
+  const handleEmployeeSubmit = async (event) => {
+    event.preventDefault();
+    setBusy('employee-save');
+    setError('');
+
     try {
-      const response = await documentsAPI.getCategories();
-      const cats = Array.isArray(response) ? response : (response.categories || []);
-      setCategories(cats);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-      setCategories([]);
+      const payload = buildEmployeePayload(employeeForm, employeeMode);
+      const response = employeeMode === 'create'
+        ? await employeeAPI.adminCreate(payload)
+        : await employeeAPI.adminUpdate(selectedEmployeeId, payload);
+      const employee = response.employee || response;
+
+      setSelectedEmployeeId(employee.id);
+      setEmployeeMode('edit');
+      setEmployeeForm(toEmployeeForm(employee));
+      await loadEmployees(employeeSearch);
+      showNotice(employeeMode === 'create' ? 'Сотрудник создан' : 'Карточка обновлена');
+    } catch (err) {
+      setError(err.message || 'Не удалось сохранить сотрудника');
+    } finally {
+      setBusy('');
     }
   };
 
-  const loadIndexStatus = async () => {
+  const handleEmployeeDelete = async () => {
+    if (!selectedEmployeeId || !window.confirm('Удалить карточку сотрудника?')) return;
+
+    setBusy('employee-delete');
+    setError('');
+
     try {
-      const status = await knowledgeAPI.getIndexStatus();
-      setIndexStatus(status);
-    } catch (error) {
-      console.error('Failed to load index status:', error);
+      await employeeAPI.adminDelete(selectedEmployeeId);
+      setSelectedEmployeeId('');
+      setEmployeeMode('create');
+      setEmployeeForm(emptyEmployee);
+      await loadEmployees(employeeSearch);
+      showNotice('Сотрудник удален');
+    } catch (err) {
+      setError(err.message || 'Не удалось удалить сотрудника');
+    } finally {
+      setBusy('');
     }
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!uploadFile || !uploadTitle || !uploadCategory || !uploadType) {
-      alert('Заполните все поля');
+  const handleVacationSubmit = async (event) => {
+    event.preventDefault();
+    if (!selectedEmployeeId) return;
+
+    setBusy('vacation-save');
+    setError('');
+
+    try {
+      await employeeAPI.adminAddVacation(selectedEmployeeId, {
+        startDate: vacationForm.startDate,
+        endDate: vacationForm.endDate,
+        days: Number(vacationForm.days),
+        status: vacationForm.status || 'planned'
+      });
+      setVacationForm(emptyVacation);
+      showNotice('Плановый отпуск добавлен');
+    } catch (err) {
+      setError(err.message || 'Не удалось добавить отпуск');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const handleUpload = async (event) => {
+    event.preventDefault();
+    if (!uploadFile) {
+      setError('Выберите файл для загрузки');
       return;
     }
 
-    setIsUploading(true);
+    setBusy('upload');
+    setError('');
+
     try {
       await documentsAPI.uploadDocument(uploadFile, uploadTitle, uploadCategory, uploadType);
-      alert('Документ успешно загружен');
       setUploadFile(null);
       setUploadTitle('');
       setUploadCategory('');
       setUploadType('');
-      loadDocuments();
-      loadIndexStatus();
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert('Ошибка загрузки документа');
+      await Promise.all([loadDocuments(), loadCategories(), loadKnowledge()]);
+      showNotice('Документ загружен');
+    } catch (err) {
+      setError(err.message || 'Не удалось загрузить документ');
     } finally {
-      setIsUploading(false);
+      setBusy('');
     }
   };
 
-  const handleDelete = async (docId) => {
-    if (!confirm('Удалить документ?')) return;
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm('Удалить документ вместе с чанками RAG?')) return;
+
+    setBusy(`document-${documentId}`);
+    setError('');
 
     try {
-      await documentsAPI.deleteDocument(docId);
-      alert('Документ удален');
-      loadDocuments();
-      loadIndexStatus();
-    } catch (error) {
-      console.error('Delete failed:', error);
-      alert('Ошибка удаления документа');
+      await documentsAPI.deleteDocument(documentId);
+      await Promise.all([loadDocuments(), loadKnowledge()]);
+      showNotice('Документ удален');
+    } catch (err) {
+      setError(err.message || 'Не удалось удалить документ');
+    } finally {
+      setBusy('');
     }
   };
 
   const handleReindex = async () => {
-    if (!confirm('Запустить реиндексацию базы знаний?')) return;
+    if (!window.confirm('Запустить переиндексацию базы знаний?')) return;
 
-    setIsReindexing(true);
+    setBusy('reindex');
+    setError('');
+
     try {
       await knowledgeAPI.reindex();
-      alert('Реиндексация запущена');
-      setTimeout(loadIndexStatus, 2000);
-    } catch (error) {
-      console.error('Reindex failed:', error);
-      alert('Ошибка реиндексации');
+      await loadKnowledge();
+      showNotice('Переиндексация запущена');
+    } catch (err) {
+      setError(err.message || 'Не удалось запустить переиндексацию');
     } finally {
-      setIsReindexing(false);
+      setBusy('');
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleCorporateSync = async () => {
+    setBusy('corporate-sync');
+    setError('');
 
     try {
-      const response = await employeeAPI.searchByName(searchQuery);
-      const results = Array.isArray(response) ? response : (response.employees || []);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Search failed:', error);
-      setSearchResults([]);
+      await knowledgeAPI.syncCorporate();
+      await loadKnowledge();
+      showNotice('Синхронизация запущена');
+    } catch (err) {
+      setError(err.message || 'Не удалось запустить синхронизацию');
+    } finally {
+      setBusy('');
     }
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
-      {/* Header */}
-      <div style={{
-        padding: '24px 32px',
-        borderBottom: '1px solid var(--line)',
-        background: 'var(--paper)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px'
-      }}>
-        <button
-          onClick={onBack}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--line)',
-            color: 'var(--ink)',
-            padding: '8px 16px',
-            cursor: 'pointer',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
-            letterSpacing: '.08em',
-            textTransform: 'uppercase',
-            transition: '.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.borderColor = 'var(--moss)';
-            e.target.style.color = 'var(--moss)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.borderColor = 'var(--line)';
-            e.target.style.color = 'var(--ink)';
-          }}
-        >
-          ← Назад
-        </button>
-        <h1 style={{
-          fontFamily: "'Fraunces', serif",
-          fontSize: '24px',
-          fontWeight: '400',
-          color: 'var(--ink)',
-          margin: 0
-        }}>
-          🔧 Админ-панель
-        </h1>
-      </div>
+    <div className="admin-panel">
+      <header className="admin-header">
+        <button className="admin-outline-btn" onClick={onBack} type="button">Назад</button>
+        <div>
+          <h1>Админ-панель</h1>
+          <span>Документы, RAG-индекс и карточки сотрудников</span>
+        </div>
+      </header>
 
-      {/* Tabs */}
-      <div style={{
-        padding: '16px 32px',
-        borderBottom: '1px solid var(--line)',
-        background: 'var(--paper)',
-        display: 'flex',
-        gap: '8px'
-      }}>
-        <button
-          onClick={() => setActiveTab('documents')}
-          style={{
-            background: activeTab === 'documents' ? 'var(--ink)' : 'transparent',
-            color: activeTab === 'documents' ? 'var(--bg)' : 'var(--ink)',
-            border: '1px solid var(--line)',
-            padding: '8px 16px',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
-            letterSpacing: '.08em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            transition: '.2s'
-          }}
-        >
-          Документы
-        </button>
-        <button
-          onClick={() => setActiveTab('knowledge')}
-          style={{
-            background: activeTab === 'knowledge' ? 'var(--ink)' : 'transparent',
-            color: activeTab === 'knowledge' ? 'var(--bg)' : 'var(--ink)',
-            border: '1px solid var(--line)',
-            padding: '8px 16px',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
-            letterSpacing: '.08em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            transition: '.2s'
-          }}
-        >
-          База знаний
-        </button>
-        <button
-          onClick={() => setActiveTab('employees')}
-          style={{
-            background: activeTab === 'employees' ? 'var(--ink)' : 'transparent',
-            color: activeTab === 'employees' ? 'var(--bg)' : 'var(--ink)',
-            border: '1px solid var(--line)',
-            padding: '8px 16px',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '11px',
-            letterSpacing: '.08em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            transition: '.2s'
-          }}
-        >
-          Сотрудники
-        </button>
-      </div>
+      <nav className="admin-tabs">
+        {[
+          ['employees', 'Сотрудники'],
+          ['documents', 'Документы'],
+          ['knowledge', 'База знаний']
+        ].map(([id, label]) => (
+          <button
+            className={activeTab === id ? 'active' : ''}
+            key={id}
+            onClick={() => setActiveTab(id)}
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
-        {isLoading ? (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '200px',
-            fontSize: '14px',
-            color: 'var(--ink-3)',
-            fontFamily: "'JetBrains Mono', monospace"
-          }}>
-            Загрузка...
-          </div>
-        ) : error ? (
-          <div style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--hot)',
-            padding: '24px',
-            color: 'var(--hot)',
-            fontSize: '14px'
-          }}>
-            Ошибка: {error}
-          </div>
+      {(error || notice) && (
+        <div className={`admin-message ${error ? 'error' : ''}`}>{error || notice}</div>
+      )}
+
+      <main className="admin-content">
+        {busy === 'initial' ? (
+          <div className="admin-empty">Загрузка...</div>
         ) : (
           <>
-            {activeTab === 'documents' && (
-          <div>
-            <h2 style={{
-              fontFamily: "'Fraunces', serif",
-              fontSize: '20px',
-              fontWeight: '400',
-              color: 'var(--ink)',
-              marginBottom: '24px'
-            }}>
-              Управление документами
-            </h2>
-
-            {/* Upload form */}
-            <form onSubmit={handleUpload} style={{
-              background: 'var(--paper)',
-              border: '1px solid var(--line)',
-              padding: '24px',
-              marginBottom: '32px'
-            }}>
-              <h3 style={{
-                fontFamily: "'Fraunces', serif",
-                fontSize: '16px',
-                fontWeight: '400',
-                color: 'var(--ink)',
-                marginBottom: '16px'
-              }}>
-                Загрузить документ
-              </h3>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input
-                  type="text"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="Название документа"
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--ink)',
-                    padding: '10px 12px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
-
-                <input
-                  type="text"
-                  value={uploadCategory}
-                  onChange={(e) => setUploadCategory(e.target.value)}
-                  placeholder="Категория (например: HR)"
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--ink)',
-                    padding: '10px 12px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
-
-                <select
-                  value={uploadType}
-                  onChange={(e) => setUploadType(e.target.value)}
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--ink)',
-                    padding: '10px 12px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="">Выберите тип</option>
-                  <option value="policy">Политика</option>
-                  <option value="procedure">Процедура</option>
-                  <option value="guide">Руководство</option>
-                  <option value="form">Форма</option>
-                  <option value="other">Другое</option>
-                </select>
-
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    onChange={(e) => setUploadFile(e.target.files[0])}
-                    id="file-upload"
-                    style={{ display: 'none' }}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    style={{
-                      display: 'block',
-                      background: 'var(--bg)',
-                      border: '1px solid var(--line)',
-                      color: 'var(--ink)',
-                      padding: '10px 12px',
-                      fontFamily: "'Inter', sans-serif",
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: '.2s'
-                    }}
-                    onMouseEnter={(e) => e.target.style.borderColor = 'var(--moss)'}
-                    onMouseLeave={(e) => e.target.style.borderColor = 'var(--line)'}
-                  >
-                    {uploadFile ? uploadFile.name : 'Выбрать файл (PDF, DOCX, TXT)'}
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isUploading}
-                  style={{
-                    background: 'var(--moss)',
-                    color: 'var(--paper)',
-                    border: 'none',
-                    padding: '10px 20px',
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '11px',
-                    letterSpacing: '.08em',
-                    textTransform: 'uppercase',
-                    cursor: isUploading ? 'not-allowed' : 'pointer',
-                    opacity: isUploading ? 0.5 : 1
-                  }}
-                >
-                  {isUploading ? 'Загрузка...' : 'Загрузить'}
-                </button>
-              </div>
-            </form>
-
-            {/* Documents list */}
-            <h3 style={{
-              fontFamily: "'Fraunces', serif",
-              fontSize: '16px',
-              fontWeight: '400',
-              color: 'var(--ink)',
-              marginBottom: '16px'
-            }}>
-              Загруженные документы ({documents.length})
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {documents.map(doc => (
-                <div key={doc.id} style={{
-                  background: 'var(--paper)',
-                  border: '1px solid var(--line)',
-                  padding: '16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div>
-                    <div style={{
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      color: 'var(--ink)',
-                      marginBottom: '4px'
-                    }}>
-                      {doc.title}
-                    </div>
-                    <div style={{
-                      fontSize: '12px',
-                      color: 'var(--ink-3)',
-                      fontFamily: "'JetBrains Mono', monospace"
-                    }}>
-                      {doc.category} • {doc.type} • {doc.filename}
-                    </div>
+            {activeTab === 'employees' && (
+              <section className="admin-employees-layout">
+                <aside className="admin-list-panel">
+                  <div className="admin-search-row">
+                    <input
+                      value={employeeSearch}
+                      onChange={(event) => setEmployeeSearch(event.target.value)}
+                      onKeyDown={(event) => event.key === 'Enter' && loadEmployees(employeeSearch)}
+                      placeholder="ФИО, email, табельный..."
+                    />
+                    <button type="button" onClick={() => loadEmployees(employeeSearch)}>Найти</button>
                   </div>
+
                   <button
-                    onClick={() => handleDelete(doc.id)}
-                    style={{
-                      background: 'var(--hot)',
-                      color: 'white',
-                      border: 'none',
-                      padding: '6px 12px',
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '10px',
-                      letterSpacing: '.08em',
-                      textTransform: 'uppercase',
-                      cursor: 'pointer'
+                    className="admin-create-btn"
+                    type="button"
+                    onClick={() => {
+                      setEmployeeMode('create');
+                      setSelectedEmployeeId('');
+                      setEmployeeForm(emptyEmployee);
                     }}
                   >
-                    Удалить
+                    Новый сотрудник
                   </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'knowledge' && (
-          <div>
-            <h2 style={{
-              fontFamily: "'Fraunces', serif",
-              fontSize: '20px',
-              fontWeight: '400',
-              color: 'var(--ink)',
-              marginBottom: '24px'
-            }}>
-              База знаний
-            </h2>
+                  <div className="admin-employee-list">
+                    {employees.map((employee) => (
+                      <button
+                        className={selectedEmployeeId === employee.id ? 'active' : ''}
+                        key={employee.id}
+                        onClick={() => handleEmployeeSelect(employee.id)}
+                        type="button"
+                      >
+                        <strong>{employee.fullName || 'Без имени'}</strong>
+                        <span>{employee.id} · {employee.position || '—'} · {employee.department || '—'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </aside>
 
-            {indexStatus && (
-              <div style={{
-                background: 'var(--paper)',
-                border: '1px solid var(--line)',
-                padding: '24px',
-                marginBottom: '24px'
-              }}>
-                <h3 style={{
-                  fontFamily: "'Fraunces', serif",
-                  fontSize: '16px',
-                  fontWeight: '400',
-                  color: 'var(--ink)',
-                  marginBottom: '16px'
-                }}>
-                  Статус индекса
-                </h3>
-                <div style={{
-                  fontSize: '14px',
-                  color: 'var(--ink)',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  lineHeight: '1.8'
-                }}>
-                  <div>Документов проиндексировано: {indexStatus.documentCount || 0}</div>
-                  <div>Чанков в векторном хранилище: {indexStatus.chunkCount || 0}</div>
-                  <div>Последняя индексация: {indexStatus.lastIndexed ? new Date(indexStatus.lastIndexed).toLocaleString('ru-RU') : 'Никогда'}</div>
-                </div>
-              </div>
+                <section className="admin-card">
+                  <div className="admin-card-header">
+                    <h2>{employeeMode === 'create' ? 'Создать сотрудника' : 'Редактировать карточку'}</h2>
+                    {employeeMode === 'edit' && (
+                      <button className="admin-danger-btn" type="button" onClick={handleEmployeeDelete}>
+                        Удалить
+                      </button>
+                    )}
+                  </div>
+
+                  <form className="admin-form-grid" onSubmit={handleEmployeeSubmit}>
+                    {employeeFields
+                      .filter((field) => employeeMode === 'create' || !field.createOnly)
+                      .map((field) => (
+                        <label key={field.name}>
+                          <span>{field.label}</span>
+                          <input
+                            type={field.type || 'text'}
+                            value={employeeForm[field.name] ?? ''}
+                            required={field.required}
+                            min={field.type === 'number' ? 0 : undefined}
+                            onChange={(event) => setEmployeeForm((current) => ({
+                              ...current,
+                              [field.name]: event.target.value
+                            }))}
+                          />
+                        </label>
+                      ))}
+
+                    <label>
+                      <span>Роль</span>
+                      <select
+                        value={employeeForm.role}
+                        onChange={(event) => setEmployeeForm((current) => ({ ...current, role: event.target.value }))}
+                      >
+                        <option value="employee">employee</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    </label>
+
+                    <div className="admin-form-actions">
+                      <button className="admin-primary-btn" type="submit" disabled={busy === 'employee-save'}>
+                        {busy === 'employee-save' ? 'Сохранение...' : 'Сохранить'}
+                      </button>
+                    </div>
+                  </form>
+
+                  {employeeMode === 'edit' && (
+                    <form className="admin-vacation-form" onSubmit={handleVacationSubmit}>
+                      <h3>Плановый отпуск</h3>
+                      <label>
+                        <span>Начало</span>
+                        <input
+                          type="date"
+                          value={vacationForm.startDate}
+                          onChange={(event) => setVacationForm((current) => ({ ...current, startDate: event.target.value }))}
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Окончание</span>
+                        <input
+                          type="date"
+                          value={vacationForm.endDate}
+                          onChange={(event) => setVacationForm((current) => ({ ...current, endDate: event.target.value }))}
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Дней</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={vacationForm.days}
+                          onChange={(event) => setVacationForm((current) => ({ ...current, days: event.target.value }))}
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Статус</span>
+                        <input
+                          value={vacationForm.status}
+                          onChange={(event) => setVacationForm((current) => ({ ...current, status: event.target.value }))}
+                        />
+                      </label>
+                      <button className="admin-outline-btn" type="submit" disabled={busy === 'vacation-save'}>
+                        Добавить отпуск
+                      </button>
+                    </form>
+                  )}
+                </section>
+              </section>
             )}
 
-            <button
-              onClick={handleReindex}
-              disabled={isReindexing}
-              style={{
-                background: 'var(--moss)',
-                color: 'var(--paper)',
-                border: 'none',
-                padding: '12px 24px',
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '11px',
-                letterSpacing: '.08em',
-                textTransform: 'uppercase',
-                cursor: isReindexing ? 'not-allowed' : 'pointer',
-                opacity: isReindexing ? 0.5 : 1
-              }}
-            >
-              {isReindexing ? 'Реиндексация...' : 'Запустить реиндексацию'}
-            </button>
-          </div>
-        )}
+            {activeTab === 'documents' && (
+              <section className="admin-stack">
+                <form className="admin-card admin-upload-form" onSubmit={handleUpload}>
+                  <div className="admin-card-header">
+                    <h2>Загрузить документ</h2>
+                    <span>PDF, DOCX, TXT, MD</span>
+                  </div>
+                  <input value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} placeholder="Название" />
+                  <input
+                    list="admin-categories"
+                    value={uploadCategory}
+                    onChange={(event) => setUploadCategory(event.target.value)}
+                    placeholder="Категория"
+                  />
+                  <datalist id="admin-categories">
+                    {categoryOptions.map((category) => <option key={category} value={category} />)}
+                  </datalist>
+                  <input value={uploadType} onChange={(event) => setUploadType(event.target.value)} placeholder="Тип, например ЛНА" />
+                  <input type="file" accept=".pdf,.docx,.txt,.md" onChange={(event) => setUploadFile(event.target.files?.[0] || null)} />
+                  <button className="admin-primary-btn" type="submit" disabled={busy === 'upload'}>
+                    {busy === 'upload' ? 'Загрузка...' : 'Загрузить'}
+                  </button>
+                </form>
 
-        {activeTab === 'employees' && (
-          <div>
-            <h2 style={{
-              fontFamily: "'Fraunces', serif",
-              fontSize: '20px',
-              fontWeight: '400',
-              color: 'var(--ink)',
-              marginBottom: '24px'
-            }}>
-              Поиск сотрудников
-            </h2>
-
-            <div style={{
-              background: 'var(--paper)',
-              border: '1px solid var(--line)',
-              padding: '24px',
-              marginBottom: '24px'
-            }}>
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Введите имя сотрудника..."
-                  style={{
-                    flex: 1,
-                    background: 'var(--bg)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--ink)',
-                    padding: '10px 12px',
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  onClick={handleSearch}
-                  style={{
-                    background: 'var(--moss)',
-                    color: 'var(--paper)',
-                    border: 'none',
-                    padding: '10px 20px',
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '11px',
-                    letterSpacing: '.08em',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Найти
-                </button>
-              </div>
-
-              {searchResults.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {searchResults.map(emp => (
-                    <div key={emp.id} style={{
-                      background: 'var(--bg)',
-                      border: '1px solid var(--line)',
-                      padding: '12px'
-                    }}>
-                      <div style={{
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: 'var(--ink)',
-                        marginBottom: '4px'
-                      }}>
-                        {emp.full_name}
+                <section className="admin-card">
+                  <div className="admin-card-header">
+                    <h2>Документы</h2>
+                    <span>{documents.length}</span>
+                  </div>
+                  <div className="admin-table">
+                    {documents.map((doc) => (
+                      <div className="admin-table-row" key={doc.id}>
+                        <div>
+                          <strong>{doc.title || doc.id}</strong>
+                          <span>{doc.category || '—'} · {doc.type || '—'} · чанков: {doc.chunkCount ?? '—'}</span>
+                        </div>
+                        <button className="admin-danger-btn" type="button" onClick={() => handleDeleteDocument(doc.id)}>
+                          Удалить
+                        </button>
                       </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'var(--ink-3)',
-                        fontFamily: "'JetBrains Mono', monospace"
-                      }}>
-                        ID: {emp.employee_id} • {emp.position} • {emp.department}
+                    ))}
+                    {!documents.length && <div className="admin-empty">Документов пока нет</div>}
+                  </div>
+                </section>
+              </section>
+            )}
+
+            {activeTab === 'knowledge' && (
+              <section className="admin-stack">
+                <section className="admin-metrics">
+                  <div>
+                    <span>Чанков</span>
+                    <strong>{indexTotal}</strong>
+                  </div>
+                  <div>
+                    <span>Документов в индексе</span>
+                    <strong>{indexDocuments.length}</strong>
+                  </div>
+                  <div>
+                    <span>Corporate sync</span>
+                    <strong>{corporateSync?.configured ? 'Настроен' : 'Не настроен'}</strong>
+                  </div>
+                  <div>
+                    <span>Расписание</span>
+                    <strong>{corporateSync?.schedule || '—'}</strong>
+                  </div>
+                </section>
+
+                <section className="admin-card">
+                  <div className="admin-card-header">
+                    <h2>Управление индексом</h2>
+                    <span>RAG и корпоративный портал</span>
+                  </div>
+                  <div className="admin-actions-row">
+                    <button className="admin-primary-btn" type="button" onClick={handleReindex} disabled={busy === 'reindex'}>
+                      Переиндексировать
+                    </button>
+                    <button className="admin-outline-btn" type="button" onClick={handleCorporateSync} disabled={busy === 'corporate-sync'}>
+                      Синхронизировать портал
+                    </button>
+                  </div>
+                  <div className="admin-sync-meta">
+                    <span>Последняя синхронизация: {corporateSync?.lastSync ? new Date(corporateSync.lastSync).toLocaleString('ru-RU') : '—'}</span>
+                    <span>Следующая: {corporateSync?.nextSync ? new Date(corporateSync.nextSync).toLocaleString('ru-RU') : '—'}</span>
+                  </div>
+                </section>
+
+                <section className="admin-card">
+                  <div className="admin-card-header">
+                    <h2>Документы индекса</h2>
+                    <span>{indexDocuments.length}</span>
+                  </div>
+                  <div className="admin-table">
+                    {indexDocuments.map((doc) => (
+                      <div className="admin-table-row" key={doc.id}>
+                        <div>
+                          <strong>{doc.title || doc.id}</strong>
+                          <span>{doc.category || '—'} · {doc.type || '—'} · чанков: {doc.chunkCount ?? '—'}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+                    ))}
+                    {!indexDocuments.length && <div className="admin-empty">Индекс пуст</div>}
+                  </div>
+                </section>
+              </section>
+            )}
+          </>
         )}
-        </>
-        )}
-      </div>
+      </main>
     </div>
   );
 }

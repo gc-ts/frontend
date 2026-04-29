@@ -23,6 +23,30 @@ const getAuthHeaders = () => {
   return headers;
 };
 
+const parseError = async (response, fallback) => {
+  const error = await response.json().catch(() => ({}));
+  return new Error(error.message || error.error || fallback);
+};
+
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('API request timed out', { cause: error });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 // Auth API
 export const authAPI = {
   register: async (employeeId, email, password, fullName) => {
@@ -157,6 +181,90 @@ export const employeeAPI = {
     return response.json();
   },
 
+  updateEmployee: async (employeeId, data) => {
+    const response = await fetch(`${API_URL}/employee/${employeeId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to update employee data');
+
+    return response.json();
+  },
+
+  adminList: async ({ search = '', limit = 100, offset = 0 } = {}) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (limit) params.append('limit', String(limit));
+    if (offset) params.append('offset', String(offset));
+
+    const response = await fetchWithTimeout(`${API_URL}/employee/admin/list?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to load employees');
+
+    return response.json();
+  },
+
+  adminGet: async (employeeId) => {
+    const response = await fetchWithTimeout(`${API_URL}/employee/admin/${employeeId}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to load employee');
+
+    return response.json();
+  },
+
+  adminCreate: async (data) => {
+    const response = await fetchWithTimeout(`${API_URL}/employee/admin`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to create employee');
+
+    return response.json();
+  },
+
+  adminUpdate: async (employeeId, data) => {
+    const response = await fetchWithTimeout(`${API_URL}/employee/admin/${employeeId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to update employee');
+
+    return response.json();
+  },
+
+  adminDelete: async (employeeId) => {
+    const response = await fetchWithTimeout(`${API_URL}/employee/admin/${employeeId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to delete employee');
+
+    return response.json();
+  },
+
+  adminAddVacation: async (employeeId, data) => {
+    const response = await fetchWithTimeout(`${API_URL}/employee/admin/${employeeId}/vacations`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to add vacation');
+
+    return response.json();
+  },
+
   getVacation: async (employeeId) => {
     const response = await fetch(`${API_URL}/employee/${employeeId}/vacation`, {
       headers: getAuthHeaders()
@@ -221,7 +329,7 @@ export const documentsAPI = {
       url += `?${params.toString()}`;
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: getAuthHeaders()
     });
 
@@ -233,7 +341,7 @@ export const documentsAPI = {
   },
 
   getDocument: async (documentId) => {
-    const response = await fetch(`${API_URL}/documents/${documentId}`, {
+    const response = await fetchWithTimeout(`${API_URL}/documents/${documentId}`, {
       headers: getAuthHeaders()
     });
 
@@ -257,11 +365,11 @@ export const documentsAPI = {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_URL}/documents/upload`, {
+    const response = await fetchWithTimeout(`${API_URL}/documents/upload`, {
       method: 'POST',
       headers: headers,
       body: formData
-    });
+    }, 60000);
 
     if (!response.ok) {
       throw new Error('Failed to upload document');
@@ -271,7 +379,7 @@ export const documentsAPI = {
   },
 
   deleteDocument: async (documentId) => {
-    const response = await fetch(`${API_URL}/documents/${documentId}`, {
+    const response = await fetchWithTimeout(`${API_URL}/documents/${documentId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
@@ -284,7 +392,7 @@ export const documentsAPI = {
   },
 
   getCategories: async () => {
-    const response = await fetch(`${API_URL}/documents/meta/categories`, {
+    const response = await fetchWithTimeout(`${API_URL}/documents/meta/categories`, {
       headers: getAuthHeaders()
     });
 
@@ -325,7 +433,7 @@ export const knowledgeAPI = {
   },
 
   reindex: async () => {
-    const response = await fetch(`${API_URL}/knowledge/reindex`, {
+    const response = await fetchWithTimeout(`${API_URL}/knowledge/reindex`, {
       method: 'POST',
       headers: getAuthHeaders()
     });
@@ -338,13 +446,34 @@ export const knowledgeAPI = {
   },
 
   getIndexStatus: async () => {
-    const response = await fetch(`${API_URL}/knowledge/index`, {
+    const response = await fetchWithTimeout(`${API_URL}/knowledge/index`, {
       headers: getAuthHeaders()
     });
 
     if (!response.ok) {
       throw new Error('Failed to get index status');
     }
+
+    return response.json();
+  },
+
+  getCorporateSync: async () => {
+    const response = await fetchWithTimeout(`${API_URL}/knowledge/corporate-sync`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to get corporate sync status');
+
+    return response.json();
+  },
+
+  syncCorporate: async () => {
+    const response = await fetchWithTimeout(`${API_URL}/knowledge/sync-corporate`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw await parseError(response, 'Failed to sync corporate knowledge');
 
     return response.json();
   }

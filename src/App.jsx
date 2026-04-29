@@ -9,6 +9,61 @@ import ArticleView from './components/ArticleView.jsx'
 import AdminPanel from './components/AdminPanel.jsx'
 import { forumArticles, forumCategories } from './data/forumArticles.js'
 
+const normalizeEmployee = (employee) => {
+  const employeeId = employee.employeeId || employee.employee_id || employee.id;
+
+  return {
+    id: employee.id,
+    employeeId,
+    email: employee.email,
+    fullName: employee.fullName || employee.full_name,
+    position: employee.position,
+    department: employee.department,
+    phone: employee.phone,
+    birthDate: employee.birthDate || employee.birth_date,
+    hireDate: employee.hireDate || employee.hire_date,
+    vacationDays: employee.vacationDays ?? employee.vacation_days,
+    salary: employee.salary,
+    bonusBalance: employee.bonusBalance ?? employee.bonus_balance,
+    middleName: employee.middleName || employee.middle_name,
+    city: employee.city,
+    telegram: employee.telegram,
+    additionalEmail: employee.additionalEmail || employee.additional_email,
+    oneCCode: employee.oneCCode || employee.one_c_code,
+    medicalExamDate: employee.medicalExamDate || employee.medical_exam_date,
+    sanitaryMinimumDate: employee.sanitaryMinimumDate || employee.sanitary_minimum_date,
+    role: employee.role || 'employee',
+    createdAt: employee.createdAt || employee.created_at,
+    updatedAt: employee.updatedAt || employee.updated_at,
+    avatar: null
+  };
+};
+
+const toStoredEmployee = (employee) => ({
+  id: employee.id,
+  employee_id: employee.employeeId,
+  email: employee.email,
+  full_name: employee.fullName,
+  position: employee.position,
+  department: employee.department,
+  phone: employee.phone,
+  birth_date: employee.birthDate,
+  hire_date: employee.hireDate,
+  vacation_days: employee.vacationDays,
+  salary: employee.salary,
+  bonus_balance: employee.bonusBalance,
+  middle_name: employee.middleName,
+  city: employee.city,
+  telegram: employee.telegram,
+  additional_email: employee.additionalEmail,
+  one_c_code: employee.oneCCode,
+  medical_exam_date: employee.medicalExamDate,
+  sanitary_minimum_date: employee.sanitaryMinimumDate,
+  role: employee.role,
+  created_at: employee.createdAt,
+  updated_at: employee.updatedAt
+});
+
 // Моковые категории и темы для бокового меню
 const RECENT_TOPICS = [
   { id: 1, title: 'Как проходит первый день?', replies: 12, category: 'Адаптация' },
@@ -40,22 +95,11 @@ function App() {
       setAuthToken(token);
       setIsAuthenticated(true);
       const employeeData = JSON.parse(employee);
-      setCurrentUser({
-        id: employeeData.id,
-        employeeId: employeeData.employee_id,
-        email: employeeData.email,
-        fullName: employeeData.full_name,
-        position: employeeData.position,
-        department: employeeData.department,
-        phone: employeeData.phone,
-        birthDate: employeeData.birth_date,
-        hireDate: employeeData.hire_date,
-        role: employeeData.role || 'employee',
-        avatar: null
-      });
+      const normalizedEmployee = normalizeEmployee(employeeData);
+      setCurrentUser(normalizedEmployee);
 
       // Загрузка чатов пользователя
-      loadChats(employeeData.employee_id);
+      loadChats(normalizedEmployee.employeeId);
     }
 
     const savedTheme = localStorage.getItem('forum.theme') || 'light';
@@ -128,21 +172,15 @@ function App() {
   const handleLogin = (employee, token) => {
     setAuthToken(token);
     setIsAuthenticated(true);
-    const empId = employee.employee_id;
-    setCurrentUser({
-      id: employee.id,
-      employeeId: empId,
-      email: employee.email,
-      fullName: employee.full_name,
-      position: employee.position,
-      department: employee.department,
-      phone: employee.phone,
-      birthDate: employee.birth_date,
-      hireDate: employee.hire_date,
-      role: employee.role || 'employee',
-      avatar: null
-    });
-    loadChats(empId);
+    const normalizedEmployee = normalizeEmployee(employee);
+    setCurrentUser(normalizedEmployee);
+    loadChats(normalizedEmployee.employeeId);
+  };
+
+  const handleUserUpdate = (employee) => {
+    const normalizedEmployee = normalizeEmployee(employee);
+    setCurrentUser(normalizedEmployee);
+    localStorage.setItem('employee', JSON.stringify(toStoredEmployee(normalizedEmployee)));
   };
 
   const handleLogout = () => {
@@ -580,6 +618,7 @@ function App() {
         <ProfileModal
           user={currentUser}
           onClose={() => setShowProfile(false)}
+          onUserUpdate={handleUserUpdate}
           onLogout={handleLogout}
         />
       )}
