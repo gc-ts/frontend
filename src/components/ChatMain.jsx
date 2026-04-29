@@ -195,7 +195,7 @@ function ChatMain({ currentUser, activeChat, onChatChange }) {
             <div style={{
               width: '44px',
               height: '44px',
-              borderRadius: message.sender === 'bot' ? '0' : '999px',
+              borderRadius: '999px',
               background: message.sender === 'bot' ? 'var(--moss)' : 'var(--sage)',
               color: 'var(--paper)',
               display: 'grid',

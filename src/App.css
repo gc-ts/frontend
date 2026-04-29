@@ -547,11 +547,12 @@ body.light .user-avatar {
   width: 32px;
   height: 32px;
   background: var(--accent-primary);
-  border-radius: 8px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .bot-avatar svg {

@@ -359,7 +359,7 @@ function App() {
           padding: '28px 24px'
         }} className={`sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
           {/* Tabs */}
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               onClick={goToChat}
               style={{
@@ -374,7 +374,6 @@ function App() {
                 textTransform: 'uppercase',
                 cursor: 'pointer',
                 transition: '.2s',
-                marginBottom: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
