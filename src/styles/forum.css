@@ -167,7 +167,7 @@ em { font-style: italic; font-family: 'Fraunces', serif; font-weight: 400; }
   border: 1px solid var(--line);
   color: var(--ink-2);
   width: 32px; height: 32px;
-  border-radius: 999px;
+  border-radius: 4px;
   display: grid; place-items: center;
   cursor: pointer;
   transition: .2s;
@@ -196,7 +196,7 @@ em { font-style: italic; font-family: 'Fraunces', serif; font-weight: 400; }
   background: transparent;
   border: 1px solid var(--line);
   padding: 6px 12px 6px 6px;
-  border-radius: 999px;
+  border-radius: 4px;
   cursor: pointer;
   transition: .2s;
   color: var(--ink);
